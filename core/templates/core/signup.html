@@ -1,1 +1,21 @@
-{% extends 'core/base.html' %}{% block title %}Signup{% endblock %}{% block content %}<div class="card auth-card"><h2>Signup</h2><form method="post">{% csrf_token %}<label>Username</label>{{ form.username }}<label>Email</label>{{ form.email }}<label>Phone (optional)</label>{{ form.phone }}<label><input type="checkbox" name="is_agent"> Register as agent</label><label>Password</label><input type="password" name="password1" required><label>Confirm Password</label><input type="password" name="password2" required><button class="btn" type="submit">Create account</button></form><p>Already have account? <a href="{% url 'login' %}">Login</a></p></div>{% endblock %}
+<form method="POST" action="">
+  {% csrf_token %}
+
+  <label for="username">Username</label>
+  <input type="text" name="username" id="username" required />
+
+  <label for="email">Email</label>
+  <input type="email" name="email" id="email" required />
+
+  <label for="password">Password</label>
+  <input type="password" name="password" id="password" required />
+
+  <label for="confirm_password">Confirm Password</label>
+  <input type="password" name="confirm_password" id="confirm_password" required />
+
+  <button type="submit">Create Account</button>
+</form>
+
+{% for message in messages %}
+  <p style="color:red;">{{ message }}</p>
+{% endfor %}
