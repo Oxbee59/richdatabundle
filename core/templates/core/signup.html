@@ -1,21 +1,33 @@
-<form method="POST" action="">
-  {% csrf_token %}
-
-  <label for="username">Username</label>
-  <input type="text" name="username" id="username" required />
-
-  <label for="email">Email</label>
-  <input type="email" name="email" id="email" required />
-
-  <label for="password">Password</label>
-  <input type="password" name="password" id="password" required />
-
-  <label for="confirm_password">Confirm Password</label>
-  <input type="password" name="confirm_password" id="confirm_password" required />
-
-  <button type="submit">Create Account</button>
-</form>
-
-{% for message in messages %}
-  <p style="color:red;">{{ message }}</p>
-{% endfor %}
+{% extends 'core/base.html' %}
+{% load static %}
+{% block content %}
+<div class="auth-card">
+    <h2 class="page-title">Create Account</h2>
+    <form method="POST" class="form">
+        {% csrf_token %}
+        <div>
+            <label>Username</label>
+            <input type="text" name="username" required>
+        </div>
+        <div>
+            <label>Email</label>
+            <input type="email" name="email" required>
+        </div>
+        <div>
+            <label>Password</label>
+            <input type="password" name="password" required>
+        </div>
+        <div>
+            <label>Confirm Password</label>
+            <input type="password" name="confirm_password" required>
+        </div>
+        <button type="submit" class="btn">Create Account</button>
+    </form>
+    <p style="margin-top:10px;text-align:center;">
+        Already have an account? 
+        <a href="{% url 'login' %}" style="color:var(--violet);font-weight:600;text-decoration:none;">
+            Login
+        </a>
+    </p>
+</div>
+{% endblock %}
