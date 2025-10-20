@@ -15,30 +15,31 @@ import uuid
 # ------------------------------
 def signup_view(request):
     if request.method == 'POST':
+        username = request.POST.get('username')
+        email = request.POST.get('email')
+        password = request.POST.get('password')
+        confirm_password = request.POST.get('confirm_password')
+
+        if password != confirm_password:
+            messages.error(request, "Passwords do not match.")
+            return redirect('signup')
+
+        if User.objects.filter(username=username).exists():
+            messages.error(request, "Username already exists.")
+            return redirect('signup')
+
+        if User.objects.filter(email=email).exists():
+            messages.error(request, "Email already registered.")
+            return redirect('signup')
+
         try:
-            username = request.POST.get('username')
-            email = request.POST.get('email')
-            password = request.POST.get('password')
-            confirm_password = request.POST.get('confirm_password')
-
-            if password != confirm_password:
-                messages.error(request, "Passwords do not match")
-                return redirect('signup')
-
-            if User.objects.filter(username=username).exists():
-                messages.error(request, "Username already taken")
-                return redirect('signup')
-
             user = User.objects.create_user(username=username, email=email, password=password)
             user.save()
             messages.success(request, "Account created successfully! You can now log in.")
             return redirect('login')
-
         except Exception as e:
-            import traceback
-            print("🚨 SIGNUP ERROR:", e)
-            traceback.print_exc()
-            messages.error(request, f"Signup failed: {e}")
+            print(f"🚨 SIGNUP ERROR: {e}")
+            messages.error(request, "Something went wrong. Please try again.")
             return redirect('signup')
 
     return render(request, 'core/signup.html')
