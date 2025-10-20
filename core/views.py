@@ -163,3 +163,74 @@ def profile(request):
         'user': request.user,
         'profile': getattr(request.user, 'profile', None),
     })
+import json
+import requests
+from django.http import JsonResponse, HttpResponseForbidden
+from django.views.decorators.csrf import csrf_exempt
+from decouple import config
+
+PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY')
+DATADASH_BASE_URL = config('DATADASH_BASE_URL')
+DATADASH_API_KEY = config('DATADASH_API_KEY')
+
+@csrf_exempt
+def paystack_webhook(request):
+    """
+    Handles Paystack Webhook events (especially successful payments)
+    """
+    if request.method != "POST":
+        return JsonResponse({"error": "Invalid request method"}, status=405)
+
+    # Verify Paystack signature to ensure it's authentic
+    paystack_signature = request.headers.get('x-paystack-signature')
+    import hmac, hashlib
+
+    computed_signature = hmac.new(
+        key=PAYSTACK_SECRET_KEY.encode('utf-8'),
+        msg=request.body,
+        digestmod=hashlib.sha512
+    ).hexdigest()
+
+    if paystack_signature != computed_signature:
+        return HttpResponseForbidden("Invalid signature")
+
+    # Parse event data
+    event_data = json.loads(request.body.decode('utf-8'))
+    event_type = event_data.get('event')
+
+    # Handle successful payment
+    if event_type == "charge.success":
+        data = event_data.get('data', {})
+        reference = data.get('reference')
+        amount = int(data.get('amount', 0)) / 100  # Convert from kobo to Naira
+        email = data.get('customer', {}).get('email')
+
+        # (Optional) Extract metadata if you sent product info during checkout
+        metadata = data.get('metadata', {})
+        phone = metadata.get('phone')
+        bundle_type = metadata.get('bundle')
+
+        # Call Datadash API to deliver the bundle
+        headers = {"Authorization": f"Token {DATADASH_API_KEY}"}
+        payload = {
+            "network": bundle_type,
+            "mobile_number": phone,
+            "plan": bundle_type,
+            "amount": amount,
+        }
+
+        try:
+            datadash_response = requests.post(
+                f"{DATADASH_BASE_URL}/vend-data/",
+                json=payload,
+                headers=headers,
+                timeout=10
+            )
+            if datadash_response.status_code == 200:
+                print(f"✅ Bundle delivered to {phone}")
+            else:
+                print(f"⚠️ Datadash API failed: {datadash_response.text}")
+        except Exception as e:
+            print(f"🚨 Datadash error: {e}")
+
+    return JsonResponse({"status": "success"}, status=200)
