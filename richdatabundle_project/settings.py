@@ -14,7 +14,7 @@ load_dotenv(BASE_DIR / '.env')
 # -----------------------------------
 SECRET_KEY = config('SECRET_KEY', default='unsafe-secret-key')
 DEBUG = config('DEBUG', default=False, cast=bool)
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='*').split(',')
+ALLOWED_HOSTS = ['richdatabundle.onrender.com', 'localhost', '127.0.0.1']
 
 # -----------------------------------
 # Installed Apps
@@ -66,7 +66,7 @@ TEMPLATES = [
 WSGI_APPLICATION = 'richdatabundle_project.wsgi.application'
 
 # -----------------------------------
-# Database (SQLite for now — upgrade later if needed)
+# Database (SQLite for now — works on Render Free-tier)
 # -----------------------------------
 DATABASES = {
     'default': {
@@ -74,6 +74,8 @@ DATABASES = {
         'NAME': BASE_DIR / 'db.sqlite3',
     }
 }
+
+
 
 # -----------------------------------
 # Password Validators
