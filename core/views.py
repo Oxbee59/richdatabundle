@@ -205,6 +205,8 @@ def paystack_webhook(request):
     # Parse event data
     event_data = json.loads(request.body.decode('utf-8'))
     event_type = event_data.get('event')
+    print("🔔 Paystack Webhook Received:", event_type)
+
 
     # Handle successful payment
     if event_type == "charge.success":
