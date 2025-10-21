@@ -1,105 +1,122 @@
-import os
 import requests
-from bs4 import BeautifulSoup
 from django.shortcuts import render, redirect
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from dotenv import load_dotenv
+from django.contrib.auth.models import User
+from django.contrib.auth import authenticate, login, logout
+from django.contrib.auth.decorators import login_required
+from django.conf import settings
+from django.http import JsonResponse
+from django.views.decorators.csrf import csrf_exempt
 
-# Load environment variables
-load_dotenv()
+# ---------------------------
+# SIGNUP / LOGIN / LOGOUT
+# ---------------------------
+def signup_view(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        email = request.POST.get("email")
+        password = request.POST.get("password")
 
-# Environment configs
-DATADASH_BASE_URL = os.getenv("DATADASH_BASE_URL", "https://datadashgh.com/api")
-DATADASH_API_KEY = os.getenv("DATADASH_API_KEY")
-PAYSTACK_PUBLIC_KEY = os.getenv("PAYSTACK_PUBLIC_KEY")
+        if User.objects.filter(username=username).exists():
+            messages.error(request, "Username already taken.")
+            return redirect("signup")
 
-# Network category IDs from Datadash
-NETWORKS = {
-    "MTN": "f9a5ef5854f97ee36c6b82853ea5080c",
-    "VODAFONE": "b9b30e8df23c3e163dfcfd99efca9d79",
-    "AIRTELTIGO": "f79d28de77c8c41b198e682b07f9a9a1",
-}
+        user = User.objects.create_user(username=username, email=email, password=password)
+        user.save()
+        messages.success(request, "Account created successfully! You can log in now.")
+        return redirect("login")
+
+    return render(request, "signup.html")
 
 
-# -------------------------------
-# DASHBOARD VIEW
-# -------------------------------
+def login_view(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+
+        user = authenticate(request, username=username, password=password)
+        if user is not None:
+            login(request, user)
+            return redirect("dashboard")
+        else:
+            messages.error(request, "Invalid credentials")
+            return redirect("login")
+
+    return render(request, "login.html")
+
+
+def logout_view(request):
+    logout(request)
+    return redirect("login")
+
+
+# ---------------------------
+# DASHBOARD (Bundles)
+# ---------------------------
 @login_required
 def dashboard(request):
-    """
-    Display all available bundles from all networks in one place.
-    """
-    all_bundles = []
+    base_url = settings.DATADASH_BASE_URL
+    bundles = []
 
     try:
-        for network, cat_id in NETWORKS.items():
-            url = f"{DATADASH_BASE_URL}/agents/buy_data_subcategories?cat_id={cat_id}"
-            response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
-
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, "html.parser")
-                bundle_cards = soup.find_all("div", class_="bundle-card")
-
-                for card in bundle_cards:
-                    name = card.find("h6").get_text(strip=True) if card.find("h6") else "Unnamed Plan"
-                    price = card.find("span", class_="price").get_text(strip=True) if card.find("span", class_="price") else ""
-                    all_bundles.append({
-                        "network": network,
-                        "size_label": name,
-                        "price": price,
-                        "bundle_code": cat_id,
-                    })
+        response = requests.get(f"{base_url}/bundles/")
+        if response.status_code == 200:
+            bundles = response.json()
     except Exception as e:
-        print("Error fetching bundles for dashboard:", e)
+        print("Error fetching bundles:", e)
 
-    return render(request, "core/dashboard.html", {"bundles": all_bundles})
+    return render(request, "dashboard.html", {"bundles": bundles})
 
 
-# -------------------------------
-# BUY BUNDLE VIEW
-# -------------------------------
+# ---------------------------
+# BUY BUNDLE
+# ---------------------------
 @login_required
 def buy_bundle(request):
-    """
-    Handles bundle purchase UI and process.
-    """
-    selected_network = request.GET.get("network")
-    bundles = []
-    recipient = ""
-    amount = ""
-
-    if selected_network in NETWORKS:
-        cat_id = NETWORKS[selected_network]
-        url = f"{DATADASH_BASE_URL}/agents/buy_data_subcategories?cat_id={cat_id}"
-
-        try:
-            response = requests.get(url, headers={"User-Agent": "Mozilla/5.0"})
-            if response.status_code == 200:
-                soup = BeautifulSoup(response.text, "html.parser")
-                bundle_cards = soup.find_all("div", class_="bundle-card")
-
-                for card in bundle_cards:
-                    name = card.find("h6").get_text(strip=True) if card.find("h6") else "Unnamed Plan"
-                    price = card.find("span", class_="price").get_text(strip=True) if card.find("span", class_="price") else ""
-                    bundles.append({"name": name, "price": price})
-
-        except Exception as e:
-            print("Error fetching bundles:", e)
+    code = request.GET.get("code")
 
     if request.method == "POST":
-        recipient = request.POST.get("recipient")
+        phone = request.POST.get("phone")
         amount = request.POST.get("amount")
-        selected_network = request.POST.get("network")
 
-        # TODO: Add Paystack integration here later
-        messages.success(request, f"Bundle purchase request for {recipient} on {selected_network} processed.")
-        return redirect("buy_bundle")
+        # Create Paystack payment session
+        paystack_url = "https://api.paystack.co/transaction/initialize"
+        headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+        data = {
+            "email": request.user.email or "customer@example.com",
+            "amount": int(float(amount) * 100),  # kobo
+            "metadata": {"phone": phone, "bundle_code": code, "user": request.user.username},
+            "callback_url": request.build_absolute_uri("/payment-success/"),
+        }
 
-    context = {
-        "bundles": bundles,
-        "networks": NETWORKS.keys(),
-        "selected_network": selected_network,
-        "paystack_public_key": PAYSTACK_PUBLIC_KEY,
-    }
-    return render(request, "core/buy_bundle.html", context)
+        response = requests.post(paystack_url, headers=headers, json=data)
+        if response.status_code == 200:
+            checkout_url = response.json()["data"]["authorization_url"]
+            return redirect(checkout_url)
+        else:
+            messages.error(request, "Error initializing payment. Try again.")
+            return redirect("dashboard")
+
+    return render(request, "buy_bundle.html", {"bundle_code": code})
+
+
+# ---------------------------
+# PAYMENT SUCCESS CALLBACK
+# ---------------------------
+@login_required
+def payment_success(request):
+    messages.success(request, "Payment successful! Your bundle will be processed shortly.")
+    return redirect("dashboard")
+
+
+# ---------------------------
+# PAYSTACK WEBHOOK
+# ---------------------------
+@csrf_exempt
+def paystack_webhook(request):
+    try:
+        event = request.body.decode("utf-8")
+        print("Webhook Event:", event)
+    except Exception as e:
+        print("Webhook Error:", e)
+    return JsonResponse({"status": "ok"})

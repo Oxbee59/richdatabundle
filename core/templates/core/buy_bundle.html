@@ -1,50 +1,21 @@
-{% extends "core/base.html" %}
-{% load static %}
+{% extends 'core/base.html' %}
+{% block title %}Buy Bundle{% endblock %}
 {% block content %}
-
-<div class="container mt-4 p-3 bg-white rounded shadow-sm" style="max-width: 600px;">
-  <h3 class="text-center mb-3 text-success">Buy a Data Bundle</h3>
-
-  <form method="get" action="" class="mb-3">
-    <label class="form-label">Select Network:</label>
-    <select name="network" class="form-select" onchange="this.form.submit()">
-      <option value="">-- Select Network --</option>
-      {% for net in networks %}
-        <option value="{{ net }}" {% if selected_network == net %}selected{% endif %}>{{ net }}</option>
-      {% endfor %}
-    </select>
-  </form>
-
-  {% if selected_network %}
-  <form method="post" action="">
+<div class="buy-container">
+  <h2>Buy Data Bundle</h2>
+  <form method="POST">
     {% csrf_token %}
-    <input type="hidden" name="network" value="{{ selected_network }}">
+    <label>Phone Number</label>
+    <input type="text" name="phone" placeholder="e.g. 0541234567" required>
 
-    <div class="mb-3">
-      <label class="form-label">Recipient Number:</label>
-      <input type="text" name="recipient" class="form-control" placeholder="Enter recipient number" required>
-    </div>
+    <label>Amount (GHS)</label>
+    <input type="number" name="amount" step="0.01" required>
 
-    <div class="mb-3">
-      <label class="form-label">Select Bundle:</label>
-      <select name="amount" class="form-select" required>
-        {% if bundles %}
-          {% for plan in bundles %}
-            <option value="{{ plan.price }}">{{ plan.name }} — {{ plan.price }}</option>
-          {% endfor %}
-        {% else %}
-          <option>No bundles available right now.</option>
-        {% endif %}
-      </select>
-    </div>
+    <input type="hidden" name="bundle_code" value="{{ bundle_code }}">
 
-    <button type="submit" class="btn btn-success w-100">Buy Now</button>
+    <button type="submit" class="btn">Proceed to Paystack</button>
   </form>
-  {% endif %}
 
-  <p class="mt-4 text-muted small text-center">
-    💡 Payment is verified with Paystack before your DataDash top-up is sent.
-  </p>
+  <p><a href="{% url 'dashboard' %}">← Back to Dashboard</a></p>
 </div>
-
 {% endblock %}
