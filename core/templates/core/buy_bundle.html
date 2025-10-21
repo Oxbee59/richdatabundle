@@ -1,81 +1,77 @@
 {% extends 'core/base.html' %}
-{% block title %}Buy Bundle | RichDataBundles{% endblock %}
+{% load static %}
+{% block title %}Buy a Data Bundle | RichDataBundles{% endblock %}
 {% block content %}
-<h2 class="text-center" style="margin-bottom:20px;">Buy a Data Bundle</h2>
 
-<form method="post" class="form" id="buyForm" style="max-width:600px;margin:auto;">
-  {% csrf_token %}
+<div class="container py-4">
+  <h2 class="text-center mb-4 fw-bold text-primary">Buy a Data Bundle</h2>
 
-  <!-- Network Selector -->
-  <div class="mb-3">
-    <label for="network" class="form-label fw-semibold">Select Network:</label>
-    <select id="network" name="network" class="form-control" onchange="changeNetwork(this.value)">
+  <!-- Network selector -->
+  <form method="get" action="" class="mb-4 text-center">
+    <label for="network" class="form-label me-2 fw-semibold">Select Network:</label>
+    <select name="network" id="network" class="form-select d-inline-block w-auto" onchange="this.form.submit()">
       <option value="MTN" {% if network == 'MTN' %}selected{% endif %}>MTN</option>
       <option value="AIRTELTIGO" {% if network == 'AIRTELTIGO' %}selected{% endif %}>AirtelTigo</option>
       <option value="VODAFONE" {% if network == 'VODAFONE' %}selected{% endif %}>Vodafone</option>
     </select>
-  </div>
-
-  <!-- Loading Spinner -->
-  <div id="loadingSpinner" class="text-center" style="display:none;margin:30px 0;">
-    <div class="spinner-border text-primary" role="status"></div>
-    <p style="margin-top:10px;color:#555;">Loading bundles...</p>
-  </div>
+  </form>
 
   {% if bundles %}
-  <div id="bundleGrid" class="grid" style="margin-bottom:20px; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:12px;">
-    {% for b in bundles %}
-    <label class="bundle-card" style="cursor:pointer; border:2px solid transparent; background:#fff; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); transition:0.2s;">
-      <input type="radio" name="bundle_name" value="{{ b.name }}" data-price="{{ b.price }}" style="display:none;">
-      <div style="padding:12px; text-align:center;">
-        <div style="font-weight:600;">{{ b.name }}</div>
-        <div style="color:#4b0db5; font-size:14px;">{{ b.price }}</div>
-      </div>
-    </label>
-    {% endfor %}
-  </div>
+  <form method="POST" id="buyForm" class="card p-4 shadow-sm border-0 mx-auto" style="max-width: 500px;">
+    {% csrf_token %}
 
-  <!-- Recipient number -->
-  <div class="mb-3">
-    <label for="phone_number" class="form-label fw-semibold">Recipient Phone Number:</label>
-    <input type="text" name="phone_number" id="phone_number" class="form-control" placeholder="Enter recipient number (e.g. 024xxxxxxx)" required>
-  </div>
+    <div class="mb-3">
+      <label for="bundle_name" class="form-label fw-semibold">Select Data Plan</label>
+      <select name="bundle_name" id="bundle_name" class="form-select" required>
+        <option value="">-- Choose Bundle --</option>
+        {% for b in bundles %}
+          <option value="{{ b.name }}" data-price="{{ b.price }}">
+            {{ b.name }} — {{ b.price }} GHS
+          </option>
+        {% endfor %}
+      </select>
+    </div>
 
-  <!-- Hidden field for bundle amount -->
-  <input type="hidden" name="amount" id="amount" value="">
+    <div class="mb-3">
+      <label for="phone_number" class="form-label fw-semibold">Recipient Phone Number</label>
+      <input type="text" name="phone_number" id="phone_number" class="form-control"
+             placeholder="Enter receiver's number (e.g. 024XXXXXXX)" required>
+    </div>
 
-  <div class="text-center">
-    <button type="submit" class="btn btn-primary" style="background:#4b0db5;border:none;padding:10px 20px;border-radius:10px;">Pay & Buy</button>
-  </div>
+    <div class="mb-3">
+      <label for="amount" class="form-label fw-semibold">Amount (₵)</label>
+      <input type="text" name="amount" id="amount" class="form-control" readonly required>
+    </div>
 
+    <button type="submit" class="btn btn-success w-100 fw-bold">
+      <i class="fa fa-lock me-1"></i> Pay & Buy
+    </button>
+  </form>
   {% else %}
-  <p class="text-center text-danger" style="margin-top:20px;">No bundles available right now. Please check back later or contact support.</p>
+    <div class="alert alert-warning text-center mt-4">
+      <i class="fa fa-info-circle"></i> No bundles available right now. Please check back later or contact support.
+    </div>
   {% endif %}
-</form>
 
-<p class="text-center" style="margin-top:20px;color:#374151;">💡 Payment is verified with Paystack before your DataDash top-up is sent.</p>
+  <p class="text-center mt-4 text-muted small">
+    💡 Payment is verified with Paystack before your DataDash top-up is sent.
+  </p>
+
+  <footer class="text-center text-muted small mt-5">
+    © 2025 <strong>RichDataBundles</strong>. All Rights Reserved.
+  </footer>
+</div>
 
 <script>
-  // Show spinner when network is changed
-  function changeNetwork(value) {
-    document.getElementById('bundleGrid')?.remove();
-    document.getElementById('loadingSpinner').style.display = 'block';
-    setTimeout(() => {
-      window.location.href = `/buy-bundle/?network=${value}`;
-    }, 500);
+  // Auto-fill amount when user selects a bundle
+  const bundleSelect = document.getElementById("bundle_name");
+  const amountInput = document.getElementById("amount");
+  if (bundleSelect) {
+    bundleSelect.addEventListener("change", () => {
+      const selected = bundleSelect.options[bundleSelect.selectedIndex];
+      amountInput.value = selected.getAttribute("data-price") || "";
+    });
   }
-
-  // Highlight selected bundle + set price
-  document.addEventListener('click', function (e) {
-    const card = e.target.closest('.bundle-card');
-    if (!card) return;
-    document.querySelectorAll('.bundle-card').forEach(c => c.style.border = '2px solid transparent');
-    card.style.border = '2px solid #4b0db5';
-    const radio = card.querySelector('input[type="radio"]');
-    if (radio) {
-      radio.checked = true;
-      document.getElementById('amount').value = radio.dataset.price.replace(/[^\d.]/g, '');
-    }
-  });
 </script>
+
 {% endblock %}

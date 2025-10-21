@@ -3,7 +3,7 @@ from django.contrib.auth import login, authenticate, logout
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.contrib.auth.models import User
-from .models import Purchase
+from .models import Bundle, Purchase
 from django.conf import settings
 from decouple import config
 from django.http import JsonResponse, HttpResponseForbidden
@@ -13,20 +13,15 @@ import uuid
 import json
 import hmac
 import hashlib
-from bs4 import BeautifulSoup
+from bs4 import BeautifulSoup  # make sure bs4 is in requirements.txt
 
-
-# ------------------------------
-# ENVIRONMENT VARIABLES
-# ------------------------------
+# Load API Keys
 PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY')
+DATADASH_BASE_URL = config('DATADASH_BASE_URL')
 DATADASH_API_KEY = config('DATADASH_API_KEY')
-DATADASH_BASE_URL = config('DATADASH_BASE_URL', default="https://datadashgh.com")
-PAYSTACK_BASE_URL = "https://api.paystack.co"
-
 
 # ------------------------------
-# SIGNUP
+# SIGNUP VIEW
 # ------------------------------
 def signup_view(request):
     if request.method == 'POST':
@@ -61,7 +56,7 @@ def signup_view(request):
 
 
 # ------------------------------
-# LOGIN
+# LOGIN VIEW
 # ------------------------------
 def login_view(request):
     if request.method == 'POST':
@@ -77,7 +72,7 @@ def login_view(request):
 
 
 # ------------------------------
-# LOGOUT
+# LOGOUT VIEW
 # ------------------------------
 def logout_view(request):
     logout(request)
@@ -85,7 +80,7 @@ def logout_view(request):
 
 
 # ------------------------------
-# DASHBOARD
+# DASHBOARD VIEW
 # ------------------------------
 @login_required
 def dashboard(request):
@@ -93,12 +88,12 @@ def dashboard(request):
 
 
 # ------------------------------
-# BUY BUNDLE
+# BUY BUNDLE VIEW
 # ------------------------------
 @login_required
 def buy_bundle(request):
     """
-    Scrapes live bundle prices directly from DataDash.
+    Scrape live bundles from DataDash website based on selected network.
     """
     network = request.GET.get('network', 'MTN')
     cat_ids = {
@@ -109,16 +104,27 @@ def buy_bundle(request):
 
     bundles = []
     try:
-        url = f"https://datadashgh.com/agents/buy_data_subcategories?cat_id={cat_ids[network.upper()]}"
-        res = requests.get(url, timeout=10)
+        headers = {
+            "User-Agent": (
+                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) "
+                "AppleWebKit/537.36 (KHTML, like Gecko) "
+                "Chrome/120.0.0.0 Safari/537.36"
+            )
+        }
+        res = requests.get(
+            f"https://datadashgh.com/agents/buy_data_subcategories?cat_id={cat_ids[network.upper()]}",
+            headers=headers,
+            timeout=15
+        )
+
         if res.status_code == 200:
             soup = BeautifulSoup(res.text, 'html.parser')
-            rows = soup.select('table tr')[1:]  # skip header
+            rows = soup.select('table tr')[1:]  # skip header row
             for row in rows:
                 cols = row.find_all('td')
                 if len(cols) >= 2:
                     plan = cols[0].get_text(strip=True)
-                    price = cols[1].get_text(strip=True).replace("GHS", "").strip()
+                    price = cols[1].get_text(strip=True)
                     bundles.append({"name": plan, "price": price})
         else:
             messages.error(request, f"Failed to fetch {network} bundles from DataDash.")
@@ -131,11 +137,11 @@ def buy_bundle(request):
         phone_number = request.POST.get("phone_number")
         amount = request.POST.get("amount")
 
-        if not phone_number or not bundle_name or not amount:
-            messages.error(request, "Please select a bundle and enter phone number.")
+        if not phone_number:
+            messages.error(request, "Please enter recipient phone number.")
             return redirect(f"/buy-bundle/?network={network}")
 
-        # Initialize Paystack
+        # Initialize Paystack payment
         reference = str(uuid.uuid4()).replace("-", "")[:16]
         headers = {"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"}
         data = {
@@ -143,22 +149,15 @@ def buy_bundle(request):
             "amount": int(float(amount) * 100),
             "reference": reference,
             "callback_url": request.build_absolute_uri('/paystack/callback/'),
-            "metadata": {
-                "phone": phone_number,
-                "bundle": bundle_name,
-                "network": network
-            },
+            "metadata": {"phone": phone_number, "bundle": bundle_name, "network": network},
         }
 
-        try:
-            res = requests.post(f"{PAYSTACK_BASE_URL}/transaction/initialize", headers=headers, json=data)
-            if res.status_code == 200:
-                return redirect(res.json()['data']['authorization_url'])
-            else:
-                messages.error(request, "Payment initialization failed. Please try again.")
-        except Exception as e:
-            print(f"🚨 Paystack init error: {e}")
-            messages.error(request, "Error connecting to Paystack. Please try again.")
+        res = requests.post('https://api.paystack.co/transaction/initialize', headers=headers, json=data)
+        if res.status_code == 200:
+            return redirect(res.json()['data']['authorization_url'])
+        else:
+            messages.error(request, "Payment initialization failed.")
+            return redirect(f"/buy-bundle/?network={network}")
 
     return render(request, "core/buy_bundle.html", {
         "bundles": bundles,
@@ -167,33 +166,29 @@ def buy_bundle(request):
 
 
 # ------------------------------
-# PAYSTACK CALLBACK
+# PAYSTACK CALLBACK VIEW
 # ------------------------------
 @login_required
 def paystack_callback(request):
     reference = request.GET.get('reference')
     headers = {"Authorization": f"Bearer {PAYSTACK_SECRET_KEY}"}
+    res = requests.get(f"https://api.paystack.co/transaction/verify/{reference}", headers=headers)
 
-    try:
-        res = requests.get(f"{PAYSTACK_BASE_URL}/transaction/verify/{reference}", headers=headers)
-        if res.status_code == 200:
-            result = res.json()
-            if result['data']['status'] == 'success':
-                messages.success(request, "Payment successful! Your data bundle will be processed shortly.")
-                return redirect('my_purchases')
-            else:
-                messages.error(request, "Payment verification failed.")
+    if res.status_code == 200:
+        result = res.json()
+        if result['data']['status'] == 'success':
+            messages.success(request, "Payment successful! Your data bundle will be processed shortly.")
+            return redirect('my_purchases')
         else:
-            messages.error(request, "Unable to verify payment at this time.")
-    except Exception as e:
-        print(f"🚨 Paystack verify error: {e}")
-        messages.error(request, "An error occurred verifying your payment.")
+            messages.error(request, "Payment verification failed.")
+    else:
+        messages.error(request, "Unable to verify payment.")
 
     return redirect('buy_bundle')
 
 
 # ------------------------------
-# MY PURCHASES
+# MY PURCHASES VIEW
 # ------------------------------
 @login_required
 def my_purchases(request):
@@ -202,7 +197,7 @@ def my_purchases(request):
 
 
 # ------------------------------
-# PROFILE
+# PROFILE VIEW
 # ------------------------------
 @login_required
 def profile(request):
@@ -218,12 +213,13 @@ def profile(request):
 @csrf_exempt
 def paystack_webhook(request):
     """
-    Handles Paystack webhook after successful payment and triggers DataDash top-up.
+    Handles Paystack Webhook events (especially successful payments)
     """
     if request.method != "POST":
-        return JsonResponse({"error": "Invalid request"}, status=405)
+        return JsonResponse({"error": "Invalid request method"}, status=405)
 
     paystack_signature = request.headers.get('x-paystack-signature')
+
     computed_signature = hmac.new(
         key=PAYSTACK_SECRET_KEY.encode('utf-8'),
         msg=request.body,
@@ -235,7 +231,6 @@ def paystack_webhook(request):
 
     event_data = json.loads(request.body.decode('utf-8'))
     event_type = event_data.get('event')
-
     print("🔔 Paystack Webhook Received:", event_type)
 
     if event_type == "charge.success":
@@ -245,28 +240,26 @@ def paystack_webhook(request):
         metadata = data.get('metadata', {})
         phone = metadata.get('phone')
         bundle_type = metadata.get('bundle')
-        network = metadata.get('network')
 
         headers = {"Authorization": f"Token {DATADASH_API_KEY}"}
         payload = {
             "mobile_number": phone,
             "plan": bundle_type,
             "amount": amount,
-            "network": network,
         }
 
         try:
             datadash_response = requests.post(
-                f"{DATADASH_BASE_URL}/api/vend-data/",
+                f"{DATADASH_BASE_URL}/vend-data/",
                 json=payload,
                 headers=headers,
-                timeout=15
+                timeout=10
             )
             if datadash_response.status_code == 200:
-                print(f"✅ Bundle delivered successfully to {phone}")
+                print(f"✅ Bundle delivered to {phone}")
             else:
-                print(f"⚠️ DataDash API failed: {datadash_response.text}")
+                print(f"⚠️ Datadash API failed: {datadash_response.text}")
         except Exception as e:
-            print(f"🚨 DataDash Error: {e}")
+            print(f"🚨 Datadash error: {e}")
 
     return JsonResponse({"status": "success"}, status=200)
