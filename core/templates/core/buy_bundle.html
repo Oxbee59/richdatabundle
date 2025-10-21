@@ -1,42 +1,81 @@
 {% extends 'core/base.html' %}
 {% block title %}Buy Bundle | RichDataBundles{% endblock %}
 {% block content %}
-<h2>Buy a Data Bundle</h2>
+<h2 class="text-center" style="margin-bottom:20px;">Buy a Data Bundle</h2>
 
-{% if bundles %}
-  <form method="post" class="form" id="buyForm">{% csrf_token %}
-    <div class="grid" style="margin-bottom:18px;">
-      {% for b in bundles %}
-        <label class="bundle-card" style="cursor:pointer; border: 2px solid transparent;">
-          <input type="radio" name="bundle_code" value="{{ b.plan }}" style="display:none;">
-          <div style="padding:12px;">
-            <div class="bundle-head">{{ b.network }} • {{ b.name }}</div>
-            <div class="bundle-price">{{ b.price }} GHS</div>
-          </div>
-        </label>
-      {% endfor %}
-    </div>
+<form method="post" class="form" id="buyForm" style="max-width:600px;margin:auto;">
+  {% csrf_token %}
 
-    <label for="phone_number">Recipient number</label>
-    <input type="text" name="phone_number" id="phone_number" class="form-control" placeholder="Enter recipient number" required>
+  <!-- Network Selector -->
+  <div class="mb-3">
+    <label for="network" class="form-label fw-semibold">Select Network:</label>
+    <select id="network" name="network" class="form-control" onchange="changeNetwork(this.value)">
+      <option value="MTN" {% if network == 'MTN' %}selected{% endif %}>MTN</option>
+      <option value="AIRTELTIGO" {% if network == 'AIRTELTIGO' %}selected{% endif %}>AirtelTigo</option>
+      <option value="VODAFONE" {% if network == 'VODAFONE' %}selected{% endif %}>Vodafone</option>
+    </select>
+  </div>
 
-    <button class="btn" type="submit" style="margin-top:12px">Pay & Buy</button>
-  </form>
+  <!-- Loading Spinner -->
+  <div id="loadingSpinner" class="text-center" style="display:none;margin:30px 0;">
+    <div class="spinner-border text-primary" role="status"></div>
+    <p style="margin-top:10px;color:#555;">Loading bundles...</p>
+  </div>
 
-  <script>
-    document.addEventListener('click', function(e){
-      const card = e.target.closest('.bundle-card');
-      if(!card) return;
-      document.querySelectorAll('.bundle-card').forEach(c => c.style.border = '2px solid transparent');
-      card.style.border = '2px solid #4b0db5';
-      const radio = card.querySelector('input[type="radio"]');
-      if(radio) radio.checked = true;
-    });
-  </script>
+  {% if bundles %}
+  <div id="bundleGrid" class="grid" style="margin-bottom:20px; display:grid; grid-template-columns:repeat(auto-fill, minmax(180px,1fr)); gap:12px;">
+    {% for b in bundles %}
+    <label class="bundle-card" style="cursor:pointer; border:2px solid transparent; background:#fff; border-radius:12px; box-shadow:0 2px 6px rgba(0,0,0,0.1); transition:0.2s;">
+      <input type="radio" name="bundle_name" value="{{ b.name }}" data-price="{{ b.price }}" style="display:none;">
+      <div style="padding:12px; text-align:center;">
+        <div style="font-weight:600;">{{ b.name }}</div>
+        <div style="color:#4b0db5; font-size:14px;">{{ b.price }}</div>
+      </div>
+    </label>
+    {% endfor %}
+  </div>
 
-{% else %}
-  <p>No bundles available right now. Please check back later or contact support.</p>
-{% endif %}
+  <!-- Recipient number -->
+  <div class="mb-3">
+    <label for="phone_number" class="form-label fw-semibold">Recipient Phone Number:</label>
+    <input type="text" name="phone_number" id="phone_number" class="form-control" placeholder="Enter recipient number (e.g. 024xxxxxxx)" required>
+  </div>
 
-<p style="margin-top:12px;color:#374151;">Note: Payment is verified with Paystack before a DataDash top-up is requested.</p>
+  <!-- Hidden field for bundle amount -->
+  <input type="hidden" name="amount" id="amount" value="">
+
+  <div class="text-center">
+    <button type="submit" class="btn btn-primary" style="background:#4b0db5;border:none;padding:10px 20px;border-radius:10px;">Pay & Buy</button>
+  </div>
+
+  {% else %}
+  <p class="text-center text-danger" style="margin-top:20px;">No bundles available right now. Please check back later or contact support.</p>
+  {% endif %}
+</form>
+
+<p class="text-center" style="margin-top:20px;color:#374151;">💡 Payment is verified with Paystack before your DataDash top-up is sent.</p>
+
+<script>
+  // Show spinner when network is changed
+  function changeNetwork(value) {
+    document.getElementById('bundleGrid')?.remove();
+    document.getElementById('loadingSpinner').style.display = 'block';
+    setTimeout(() => {
+      window.location.href = `/buy-bundle/?network=${value}`;
+    }, 500);
+  }
+
+  // Highlight selected bundle + set price
+  document.addEventListener('click', function (e) {
+    const card = e.target.closest('.bundle-card');
+    if (!card) return;
+    document.querySelectorAll('.bundle-card').forEach(c => c.style.border = '2px solid transparent');
+    card.style.border = '2px solid #4b0db5';
+    const radio = card.querySelector('input[type="radio"]');
+    if (radio) {
+      radio.checked = true;
+      document.getElementById('amount').value = radio.dataset.price.replace(/[^\d.]/g, '');
+    }
+  });
+</script>
 {% endblock %}

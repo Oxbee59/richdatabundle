@@ -3,16 +3,20 @@ from . import views
 
 urlpatterns = [
     path('', views.dashboard, name='dashboard'),
+
+    # Auth
     path('signup/', views.signup_view, name='signup'),
     path('login/', views.login_view, name='login'),
     path('logout/', views.logout_view, name='logout'),
-    path('buy/', views.buy_bundle, name='buy_bundle'),
+
+    # Bundles
+    path('buy-bundle/', views.buy_bundle, name='buy_bundle'),
     path('my-purchases/', views.my_purchases, name='my_purchases'),
+
+    # Profile
     path('profile/', views.profile, name='profile'),
 
-    # Paystack payment routes
+    # Paystack
     path('paystack/callback/', views.paystack_callback, name='paystack_callback'),
-
-    # ✅ New: Paystack Webhook route (for backend payment confirmation)
     path('paystack/webhook/', views.paystack_webhook, name='paystack_webhook'),
 ]
