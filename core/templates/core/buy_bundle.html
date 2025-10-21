@@ -1,77 +1,50 @@
-{% extends 'core/base.html' %}
+{% extends "core/base.html" %}
 {% load static %}
-{% block title %}Buy a Data Bundle | RichDataBundles{% endblock %}
 {% block content %}
 
-<div class="container py-4">
-  <h2 class="text-center mb-4 fw-bold text-primary">Buy a Data Bundle</h2>
+<div class="container mt-4 p-3 bg-white rounded shadow-sm" style="max-width: 600px;">
+  <h3 class="text-center mb-3 text-success">Buy a Data Bundle</h3>
 
-  <!-- Network selector -->
-  <form method="get" action="" class="mb-4 text-center">
-    <label for="network" class="form-label me-2 fw-semibold">Select Network:</label>
-    <select name="network" id="network" class="form-select d-inline-block w-auto" onchange="this.form.submit()">
-      <option value="MTN" {% if network == 'MTN' %}selected{% endif %}>MTN</option>
-      <option value="AIRTELTIGO" {% if network == 'AIRTELTIGO' %}selected{% endif %}>AirtelTigo</option>
-      <option value="VODAFONE" {% if network == 'VODAFONE' %}selected{% endif %}>Vodafone</option>
+  <form method="get" action="" class="mb-3">
+    <label class="form-label">Select Network:</label>
+    <select name="network" class="form-select" onchange="this.form.submit()">
+      <option value="">-- Select Network --</option>
+      {% for net in networks %}
+        <option value="{{ net }}" {% if selected_network == net %}selected{% endif %}>{{ net }}</option>
+      {% endfor %}
     </select>
   </form>
 
-  {% if bundles %}
-  <form method="POST" id="buyForm" class="card p-4 shadow-sm border-0 mx-auto" style="max-width: 500px;">
+  {% if selected_network %}
+  <form method="post" action="">
     {% csrf_token %}
+    <input type="hidden" name="network" value="{{ selected_network }}">
 
     <div class="mb-3">
-      <label for="bundle_name" class="form-label fw-semibold">Select Data Plan</label>
-      <select name="bundle_name" id="bundle_name" class="form-select" required>
-        <option value="">-- Choose Bundle --</option>
-        {% for b in bundles %}
-          <option value="{{ b.name }}" data-price="{{ b.price }}">
-            {{ b.name }} — {{ b.price }} GHS
-          </option>
-        {% endfor %}
+      <label class="form-label">Recipient Number:</label>
+      <input type="text" name="recipient" class="form-control" placeholder="Enter recipient number" required>
+    </div>
+
+    <div class="mb-3">
+      <label class="form-label">Select Bundle:</label>
+      <select name="amount" class="form-select" required>
+        {% if bundles %}
+          {% for plan in bundles %}
+            <option value="{{ plan.price }}">{{ plan.name }} — {{ plan.price }}</option>
+          {% endfor %}
+        {% else %}
+          <option>No bundles available right now.</option>
+        {% endif %}
       </select>
     </div>
 
-    <div class="mb-3">
-      <label for="phone_number" class="form-label fw-semibold">Recipient Phone Number</label>
-      <input type="text" name="phone_number" id="phone_number" class="form-control"
-             placeholder="Enter receiver's number (e.g. 024XXXXXXX)" required>
-    </div>
-
-    <div class="mb-3">
-      <label for="amount" class="form-label fw-semibold">Amount (₵)</label>
-      <input type="text" name="amount" id="amount" class="form-control" readonly required>
-    </div>
-
-    <button type="submit" class="btn btn-success w-100 fw-bold">
-      <i class="fa fa-lock me-1"></i> Pay & Buy
-    </button>
+    <button type="submit" class="btn btn-success w-100">Buy Now</button>
   </form>
-  {% else %}
-    <div class="alert alert-warning text-center mt-4">
-      <i class="fa fa-info-circle"></i> No bundles available right now. Please check back later or contact support.
-    </div>
   {% endif %}
 
-  <p class="text-center mt-4 text-muted small">
+  <p class="mt-4 text-muted small text-center">
     💡 Payment is verified with Paystack before your DataDash top-up is sent.
   </p>
-
-  <footer class="text-center text-muted small mt-5">
-    © 2025 <strong>RichDataBundles</strong>. All Rights Reserved.
-  </footer>
 </div>
-
-<script>
-  // Auto-fill amount when user selects a bundle
-  const bundleSelect = document.getElementById("bundle_name");
-  const amountInput = document.getElementById("amount");
-  if (bundleSelect) {
-    bundleSelect.addEventListener("change", () => {
-      const selected = bundleSelect.options[bundleSelect.selectedIndex];
-      amountInput.value = selected.getAttribute("data-price") || "";
-    });
-  }
-</script>
 
 {% endblock %}
