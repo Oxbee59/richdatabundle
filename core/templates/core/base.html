@@ -1,52 +1,33 @@
-{% load static %}
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>{% block title %}RichDataBundles{% endblock %}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="{% static 'core/css/style.css' %}">
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Rich Data Bundle{% endblock %}</title>
+    <link rel="stylesheet" href="{% static 'core/css/style.css' %}">
 </head>
 <body>
-  <nav class="nav">
-    <div class="container nav-inner">
-      <div class="brand">
-        <a href="{% url 'dashboard' %}">RichDataBundles</a>
-      </div>
-      <div class="links">
+    <header style="background-color:#6a0dad; color:#fff; padding:1rem; text-align:center;">
+        <h1>Rich Data Bundle</h1>
         {% if user.is_authenticated %}
-          <a href="{% url 'dashboard' %}">Home</a>
-          <a href="{% url 'buy_bundle' %}">Buy Bundle</a>
-          <a href="{% url 'my_purchases' %}">My Purchases</a>
-          <a href="{% url 'profile' %}">Profile</a>
-          <a href="{% url 'logout' %}">Logout</a>
+            <nav>
+                <a href="{% url 'dashboard' %}" style="color:#fff; margin-right:1rem;">Dashboard</a>
+                <a href="{% url 'logout' %}" style="color:#fff;">Logout</a>
+            </nav>
         {% else %}
-          <a href="{% url 'signup' %}">Signup</a>
-          <a href="{% url 'login' %}">Login</a>
+            <nav>
+                <a href="{% url 'login' %}" style="color:#fff; margin-right:1rem;">Login</a>
+                <a href="{% url 'signup' %}" style="color:#fff;">Sign Up</a>
+            </nav>
         {% endif %}
-      </div>
-    </div>
-  </nav>
+    </header>
 
-  <main class="container">
-    {% if messages %}
-    <div class="messages">
-      {% for m in messages %}
-      <div class="msg {{ m.tags }}" style="background:#e7e7ff;padding:10px;margin-bottom:8px;border-left:4px solid var(--violet);border-radius:6px;">
-        {{ m }}
-      </div>
-      {% endfor %}
-    </div>
-    {% endif %}
+    <main style="padding:1rem;">
+        {% block content %}{% endblock %}
+    </main>
 
-    {% block content %}{% endblock %}
-  </main>
-
-  <footer class="footer">
-    <div class="container">
-      © 2025 RichDataBundles. All Rights Reserved.
-    </div>
-  </footer>
+    <footer style="text-align:center; padding:1rem; background:#f5f0ff; color:#333;">
+        &copy; {{ year }} Rich Data Bundle
+    </footer>
 </body>
 </html>
