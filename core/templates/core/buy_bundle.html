@@ -8,45 +8,30 @@
     <div class="grid" style="margin-bottom:18px;">
       {% for b in bundles %}
         <label class="bundle-card" style="cursor:pointer; border: 2px solid transparent;">
-          <input type="radio" name="bundle_code" value="{{ b.bundle_code }}" style="display:none;"
-                 {% if selected_code and selected_code == b.bundle_code %}checked{% endif %}>
+          <input type="radio" name="bundle_code" value="{{ b.plan }}" style="display:none;">
           <div style="padding:12px;">
-            <div class="bundle-head">{{ b.network }} • {{ b.size_label }}</div>
+            <div class="bundle-head">{{ b.network }} • {{ b.name }}</div>
             <div class="bundle-price">{{ b.price }} GHS</div>
           </div>
         </label>
       {% endfor %}
     </div>
 
-    <label>Recipient number</label>
-    {{ form.recipient }}
+    <label for="phone_number">Recipient number</label>
+    <input type="text" name="phone_number" id="phone_number" class="form-control" placeholder="Enter recipient number" required>
 
-    <!-- amount will be computed server-side from selected bundle -->
     <button class="btn" type="submit" style="margin-top:12px">Pay & Buy</button>
   </form>
 
   <script>
-    // Simple visual highlight for chosen bundle (no extra libs)
     document.addEventListener('click', function(e){
       const card = e.target.closest('.bundle-card');
       if(!card) return;
-      // unselect all
       document.querySelectorAll('.bundle-card').forEach(c => c.style.border = '2px solid transparent');
-      // mark chosen
       card.style.border = '2px solid #4b0db5';
-      // ensure radio is checked
       const radio = card.querySelector('input[type="radio"]');
       if(radio) radio.checked = true;
     });
-
-    // Auto-select the preselected code (if page loaded with selected_code)
-    (function(){
-      const selected = "{{ selected_code|default:'' }}";
-      if(selected){
-        const r = document.querySelector('input[type="radio"][value="'+selected+'"]');
-        if(r){ r.checked = true; r.closest('.bundle-card').style.border = '2px solid #4b0db5'; }
-      }
-    })();
   </script>
 
 {% else %}

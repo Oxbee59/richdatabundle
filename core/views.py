@@ -6,9 +6,18 @@ from django.contrib.auth.models import User
 from .models import Bundle, Purchase
 from django.conf import settings
 from decouple import config
+from django.http import JsonResponse, HttpResponseForbidden
+from django.views.decorators.csrf import csrf_exempt
 import requests
 import uuid
+import json
+import hmac
+import hashlib
 
+# Load API Keys
+PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY')
+DATADASH_BASE_URL = config('DATADASH_BASE_URL')
+DATADASH_API_KEY = config('DATADASH_API_KEY')
 
 # ------------------------------
 # SIGNUP VIEW
@@ -43,6 +52,7 @@ def signup_view(request):
             return redirect('signup')
 
     return render(request, 'core/signup.html')
+
 
 # ------------------------------
 # LOGIN VIEW
@@ -81,48 +91,66 @@ def dashboard(request):
 # ------------------------------
 @login_required
 def buy_bundle(request):
-    bundles = Bundle.objects.filter(is_active=True)
+    """
+    Fetch bundles live from Datadash and handle purchases
+    """
+    headers = {"Authorization": f"Token {DATADASH_API_KEY}"}
+    bundles = []
+
+    try:
+        res = requests.get(f"{DATADASH_BASE_URL}/data-plans/", headers=headers, timeout=10)
+        if res.status_code == 200:
+            bundles = res.json()
+        else:
+            messages.error(request, "Failed to fetch bundles from Datadash.")
+    except Exception as e:
+        print(f"🚨 Error fetching bundles: {e}")
+        messages.error(request, "Unable to connect to Datadash API.")
 
     if request.method == "POST":
         bundle_code = request.POST.get("bundle_code")
-        try:
-            bundle = Bundle.objects.get(bundle_code=bundle_code, is_active=True)
-        except Bundle.DoesNotExist:
+        phone_number = request.POST.get("phone_number")
+
+        if not bundle_code:
+            messages.error(request, "Please select a bundle.")
+            return redirect("buy_bundle")
+
+        if not phone_number:
+            messages.error(request, "Please enter recipient phone number.")
+            return redirect("buy_bundle")
+
+        # Find the selected bundle from Datadash
+        selected_bundle = next((b for b in bundles if str(b["plan"]) == str(bundle_code)), None)
+        if not selected_bundle:
             messages.error(request, "Invalid bundle selected.")
             return redirect("buy_bundle")
 
-        # Generate unique reference for Paystack
         reference = str(uuid.uuid4()).replace("-", "")[:16]
 
-        # Create a pending Purchase record
-        purchase = Purchase.objects.create(
-            user=request.user,
-            bundle=bundle,
-            amount=bundle.price,
-            api_transaction_id=reference,
-            paid=False,
-        )
-
         # Initialize Paystack payment
-        paystack_key = config('PAYSTACK_SECRET_KEY')
+        paystack_key = PAYSTACK_SECRET_KEY
         headers = {"Authorization": f"Bearer {paystack_key}"}
         data = {
             "email": request.user.email,
-            "amount": int(bundle.price * 100),  # convert to kobo
+            "amount": int(float(selected_bundle["price"]) * 100),
             "reference": reference,
             "callback_url": request.build_absolute_uri('/paystack/callback/'),
+            "metadata": {
+                "phone": phone_number,
+                "bundle": bundle_code,
+            },
         }
-        res = requests.post('https://api.paystack.co/transaction/initialize', headers=headers, data=data)
 
+        res = requests.post('https://api.paystack.co/transaction/initialize', headers=headers, json=data)
         if res.status_code == 200:
-            result = res.json()
-            return redirect(result['data']['authorization_url'])
+            return redirect(res.json()['data']['authorization_url'])
         else:
-            messages.error(request, "Error initializing payment. Please try again.")
+            print(res.text)
+            messages.error(request, "Payment initialization failed.")
             return redirect('buy_bundle')
 
-    # GET request
     return render(request, "core/buy_bundle.html", {"bundles": bundles})
+
 
 # ------------------------------
 # PAYSTACK CALLBACK VIEW
@@ -130,17 +158,14 @@ def buy_bundle(request):
 @login_required
 def paystack_callback(request):
     reference = request.GET.get('reference')
-    paystack_key = config('PAYSTACK_SECRET_KEY')
+    paystack_key = PAYSTACK_SECRET_KEY
     headers = {"Authorization": f"Bearer {paystack_key}"}
     res = requests.get(f"https://api.paystack.co/transaction/verify/{reference}", headers=headers)
 
     if res.status_code == 200:
         result = res.json()
         if result['data']['status'] == 'success':
-            purchase = get_object_or_404(Purchase, api_transaction_id=reference)
-            purchase.paid = True
-            purchase.save()
-            messages.success(request, "Payment successful! Your data bundle will be processed.")
+            messages.success(request, "Payment successful! Your data bundle will be processed shortly.")
             return redirect('my_purchases')
         else:
             messages.error(request, "Payment verification failed.")
@@ -164,23 +189,15 @@ def my_purchases(request):
 # ------------------------------
 @login_required
 def profile(request):
-    """
-    Displays user profile info, e.g. name, email, phone, agent status.
-    """
     return render(request, 'core/profile.html', {
         'user': request.user,
         'profile': getattr(request.user, 'profile', None),
     })
-import json
-import requests
-from django.http import JsonResponse, HttpResponseForbidden
-from django.views.decorators.csrf import csrf_exempt
-from decouple import config
 
-PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY')
-DATADASH_BASE_URL = config('DATADASH_BASE_URL')
-DATADASH_API_KEY = config('DATADASH_API_KEY')
 
+# ------------------------------
+# PAYSTACK WEBHOOK
+# ------------------------------
 @csrf_exempt
 def paystack_webhook(request):
     """
@@ -189,9 +206,7 @@ def paystack_webhook(request):
     if request.method != "POST":
         return JsonResponse({"error": "Invalid request method"}, status=405)
 
-    # Verify Paystack signature to ensure it's authentic
     paystack_signature = request.headers.get('x-paystack-signature')
-    import hmac, hashlib
 
     computed_signature = hmac.new(
         key=PAYSTACK_SECRET_KEY.encode('utf-8'),
@@ -202,28 +217,20 @@ def paystack_webhook(request):
     if paystack_signature != computed_signature:
         return HttpResponseForbidden("Invalid signature")
 
-    # Parse event data
     event_data = json.loads(request.body.decode('utf-8'))
     event_type = event_data.get('event')
     print("🔔 Paystack Webhook Received:", event_type)
 
-
-    # Handle successful payment
     if event_type == "charge.success":
         data = event_data.get('data', {})
         reference = data.get('reference')
-        amount = int(data.get('amount', 0)) / 100  # Convert from kobo to Naira
-        email = data.get('customer', {}).get('email')
-
-        # (Optional) Extract metadata if you sent product info during checkout
+        amount = int(data.get('amount', 0)) / 100
         metadata = data.get('metadata', {})
         phone = metadata.get('phone')
         bundle_type = metadata.get('bundle')
 
-        # Call Datadash API to deliver the bundle
         headers = {"Authorization": f"Token {DATADASH_API_KEY}"}
         payload = {
-            "network": bundle_type,
             "mobile_number": phone,
             "plan": bundle_type,
             "amount": amount,
