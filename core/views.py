@@ -67,28 +67,64 @@ def sync_datadash_plans():
     try:
         resp = requests.get(url, headers=headers, timeout=10)
         if resp.status_code != 200:
-            print("Failed to fetch DataDash plans:", resp.text)
+            print("Failed to fetch DataDash plans:", resp.status_code, resp.text)
             return None
 
-        plans = resp.json()
+        # ✅ FIX: Handle when response is string or nested JSON
+        try:
+            plans = resp.json()
+            if isinstance(plans, str):
+                import json
+                plans = json.loads(plans)
+        except Exception as e:
+            print("Error parsing DataDash JSON:", e)
+            return None
+
+        # ✅ Validate format
+        if not isinstance(plans, list):
+            print("Unexpected DataDash response format:", plans)
+            return None
+
+        from .models import Bundle
+
         for plan in plans:
-            plan_id = plan.get("id") or plan.get("plan_id")
+            if not isinstance(plan, dict):
+                print("Skipping invalid plan record:", plan)
+                continue
+
+            plan_id = (
+                plan.get("id")
+                or plan.get("plan_id")
+                or plan.get("planId")
+                or plan.get("code")
+            )
             if not plan_id:
                 continue
+
+            price = (
+                plan.get("price")
+                or plan.get("selling_price")
+                or plan.get("amount")
+                or 0
+            )
+            name = plan.get("name") or plan.get("title") or f"Plan {plan_id}"
+            description = plan.get("description", "")
 
             Bundle.objects.update_or_create(
                 code=plan_id,
                 defaults={
-                    "name": plan.get("name", f"Plan {plan_id}"),
-                    "price": float(plan.get("price") or plan.get("selling_price") or 0),
-                    "description": plan.get("description", ""),
+                    "name": name,
+                    "price": float(price),
+                    "description": description,
                 },
             )
+
+        print("✅ DataDash plans synced successfully.")
         return plans
+
     except Exception as e:
         print("Error syncing DataDash plans:", e)
         return None
-
 
 # ---------------------------
 # DASHBOARD VIEW
