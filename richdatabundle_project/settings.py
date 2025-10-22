@@ -34,7 +34,7 @@ INSTALLED_APPS = [
 # -----------------------------------
 MIDDLEWARE = [
     'django.middleware.security.SecurityMiddleware',
-    'whitenoise.middleware.WhiteNoiseMiddleware',  # ✅ Added for static files
+    'whitenoise.middleware.WhiteNoiseMiddleware',  # Static files handling
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
@@ -67,13 +67,14 @@ TEMPLATES = [
 WSGI_APPLICATION = 'richdatabundle_project.wsgi.application'
 
 # -----------------------------------
-# Database (SQLite for now — works on Render Free-tier)
+# Database (PostgreSQL on Render recommended for production)
 # -----------------------------------
+import dj_database_url
+
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
-    }
+    'default': dj_database_url.config(
+        default=f"sqlite:///{BASE_DIR / 'db.sqlite3'}"  # fallback to SQLite
+    )
 }
 
 # -----------------------------------
@@ -100,9 +101,13 @@ USE_TZ = True
 STATIC_URL = '/static/'
 STATICFILES_DIRS = [BASE_DIR / 'core' / 'static']
 STATIC_ROOT = BASE_DIR / 'staticfiles'
-
-# ✅ Add WhiteNoise compression for static optimization
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+
+# -----------------------------------
+# Media Files
+# -----------------------------------
+MEDIA_URL = '/media/'
+MEDIA_ROOT = BASE_DIR / 'media'
 
 # -----------------------------------
 # Authentication Redirects
@@ -124,11 +129,29 @@ PAYSTACK_SECRET_KEY = config('PAYSTACK_SECRET_KEY', default='')
 # Security Settings (Active for Production)
 # -----------------------------------
 if not DEBUG:
-    SECURE_HSTS_SECONDS = 31536000               # Enforce HTTPS for 1 year
+    SECURE_HSTS_SECONDS = 31536000
     SECURE_HSTS_INCLUDE_SUBDOMAINS = True
     SECURE_HSTS_PRELOAD = True
-    SECURE_SSL_REDIRECT = True                   # Redirect all HTTP -> HTTPS
-    SESSION_COOKIE_SECURE = True                 # Send session cookies only via HTTPS
-    CSRF_COOKIE_SECURE = True                    # Send CSRF cookies only via HTTPS
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
     SECURE_CONTENT_TYPE_NOSNIFF = True
+    X_FRAME_OPTIONS = 'DENY'
+
+# -----------------------------------
+# Logging (optional but helps debug server errors)
+# -----------------------------------
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}

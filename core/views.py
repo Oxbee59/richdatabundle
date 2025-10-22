@@ -114,9 +114,26 @@ def payment_success(request):
 # ---------------------------
 @csrf_exempt
 def paystack_webhook(request):
-    try:
-        event = request.body.decode("utf-8")
-        print("Webhook Event:", event)
-    except Exception as e:
-        print("Webhook Error:", e)
-    return JsonResponse({"status": "ok"})
+    """Handle Paystack webhook events"""
+    if request.method == "POST":
+        # Verify the signature
+        paystack_signature = request.headers.get("X-Paystack-Signature")
+        payload = request.body
+        secret = settings.PAYSTACK_SECRET_KEY.encode()
+        hash_hmac = hmac.new(secret, payload, hashlib.sha512).hexdigest()
+
+        if paystack_signature != hash_hmac:
+            return HttpResponse(status=400)
+
+        event = json.loads(payload)
+
+        # Handle event types
+        if event['event'] == 'charge.success':
+            # Example: update user balance, mark order paid, etc.
+            reference = event['data']['reference']
+            # TODO: Add your logic here
+            print(f"Payment successful: {reference}")
+
+        # Respond to Paystack
+        return HttpResponse(status=200)
+    return HttpResponse(status=405)
