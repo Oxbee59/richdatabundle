@@ -143,12 +143,26 @@ def dashboard(request):
 
 @login_required
 def buy_bundle(request):
-    bundles = Bundle.objects.all().order_by("price")
+    from .models import Bundle, Purchase
+    import requests
 
+    # Get bundles and ensure data is available
+    bundles = Bundle.objects.all().order_by("price")
+    if not bundles.exists():
+        from .utils import sync_datadash_plans
+        sync_datadash_plans()
+        bundles = Bundle.objects.all().order_by("price")
+
+    # Handle POST (when user clicks buy)
     if request.method == "POST":
         recipient = request.POST.get("recipient")
         bundle_id = request.POST.get("bundle_id")
-        bundle = Bundle.objects.get(id=bundle_id)
+
+        try:
+            bundle = Bundle.objects.get(id=bundle_id)
+        except Bundle.DoesNotExist:
+            messages.error(request, "Selected bundle not found.")
+            return redirect("buy_bundle")
 
         # Initialize Paystack payment
         paystack_url = "https://api.paystack.co/transaction/initialize"
@@ -182,13 +196,14 @@ def buy_bundle(request):
             )
 
             return redirect(auth_url)
+
         except Exception as e:
             print("Paystack init error:", e)
             messages.error(request, "Payment initialization failed.")
             return redirect("buy_bundle")
 
+    # Render available bundles
     return render(request, "core/buy_bundle.html", {"bundles": bundles})
-
 
 # ---------------------------
 # PAYMENT SUCCESS (user redirected after Paystack)
