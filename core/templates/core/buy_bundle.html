@@ -1,95 +1,52 @@
-{% extends 'base.html' %}
+{% extends 'core/base.html' %}
 {% load static %}
 
 {% block content %}
-<div class="buy-bundle-container">
-  <h2 class="title">Buy Data Bundle</h2>
+<div class="container mt-5">
+  <h2 class="text-center mb-4 text-primary fw-bold">Buy Data Bundle</h2>
 
-  <form method="POST" action="{% url 'buy_bundle' %}" class="bundle-form">
+  <form method="POST" action="{% url 'buy_bundle' %}" class="mt-4">
     {% csrf_token %}
-    
-    <div class="bundle-list">
-      {% for bundle in bundles %}
-      <label class="bundle-card">
-        <input type="radio" name="bundle_id" value="{{ bundle.id }}" required>
-        <div class="bundle-details">
-          <p class="network">{{ bundle.network }}</p>
-          <p class="size">{{ bundle.size }} GB</p>
-          <p class="price">₵{{ bundle.price }}</p>
+
+    <!-- Recipient Number -->
+    <div class="form-group mb-4 text-center">
+      <label for="recipient" class="form-label fw-semibold">Recipient Number</label>
+      <input type="text" name="recipient" id="recipient" placeholder="e.g. 054XXXXXXXX"
+             class="form-control text-center p-3 rounded-3 border border-primary" required>
+    </div>
+
+    <!-- Bundle Cards -->
+    <div class="row justify-content-center">
+      {% if bundles %}
+        {% for bundle in bundles %}
+          {% with name_lower=bundle.name|lower %}
+          <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
+            <!-- apply network class instead of inline styles -->
+            <div class="card bundle-card text-center shadow border-0 rounded-4 p-3
+                        {% if 'mtn' in name_lower %}net-mtn{% elif 'telecel' in name_lower %}net-telecel
+                        {% elif 'tigo' in name_lower or 'airteltigo' in name_lower %}net-airteltigo{% else %}net-other{% endif %}">
+              <div class="card-body">
+                <h5 class="fw-bold mb-2">{{ bundle.name }}</h5>
+                <p class="mb-1">
+                  {% if 'mtn' in name_lower %}MTN{% elif 'telecel' in name_lower %}Telecel
+                  {% elif 'tigo' in name_lower or 'airteltigo' in name_lower %}AirtelTigo{% else %}Other{% endif %}
+                </p>
+                <h4 class="fw-bold mb-3">₵{{ bundle.price }}</h4>
+                <button type="submit" name="bundle_id" value="{{ bundle.id }}"
+                        class="btn btn-dark rounded-pill px-4 py-2 w-100">
+                  Buy Now
+                </button>
+              </div>
+            </div>
+          </div>
+          {% endwith %}
+        {% endfor %}
+      {% else %}
+        <div class="col-12 text-center mt-4">
+          <p class="text-muted fs-5">No bundles available yet. Please check back soon!</p>
         </div>
-      </label>
-      {% endfor %}
+      {% endif %}
     </div>
-
-    <div class="recipient-section">
-      <label for="recipient">Recipient Number</label>
-      <input type="text" name="recipient" id="recipient" placeholder="e.g. 0541234567" required>
-    </div>
-
-    <button type="submit" class="buy-btn">Buy Now</button>
   </form>
 </div>
-
-<style>
-.buy-bundle-container {
-  max-width: 700px;
-  margin: 40px auto;
-  padding: 25px;
-  background: #ffffff;
-  border-radius: 12px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
-}
-
-.title {
-  text-align: center;
-  margin-bottom: 20px;
-  color: #003366;
-}
-
-.bundle-list {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 15px;
-  margin-bottom: 20px;
-}
-
-.bundle-card {
-  border: 2px solid #003366;
-  border-radius: 10px;
-  padding: 15px;
-  cursor: pointer;
-  transition: all 0.3s;
-  text-align: center;
-  color: #003366;
-}
-
-.bundle-card:hover {
-  background: #003366;
-  color: #fff;
-}
-
-.bundle-card input {
-  display: none;
-}
-
-.recipient-section {
-  margin-bottom: 20px;
-}
-
-.buy-btn {
-  width: 100%;
-  padding: 12px;
-  background-color: #003366;
-  color: white;
-  font-weight: bold;
-  border: none;
-  border-radius: 8px;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-.buy-btn:hover {
-  background-color: #0055a5;
-}
-</style>
 {% endblock %}

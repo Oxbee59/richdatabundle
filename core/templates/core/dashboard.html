@@ -1,26 +1,18 @@
 {% extends 'core/base.html' %}
-{% block title %}Dashboard{% endblock %}
+{% load static %}
 
 {% block content %}
-<div class="dashboard-container">
-  <h2>Welcome, {{ request.user.username }}</h2>
+<div class="container mt-5">
+    <div class="text-center">
+        <h2 class="fw-bold text-success">Welcome {{ user.username }} 👋</h2>
+        <p class="text-muted">
+            Your trusted data bundle partner — Safe. Fast. Reliable.<br>
+            Buy MTN, Telecel, and AirtelTigo data instantly with <strong>RichDataBundle</strong>.
+        </p>
 
-  {% if bundles %}
-    <div class="bundles-grid">
-      {% for bundle in bundles %}
-        <div class="bundle-card">
-          <h3>{{ bundle.name }}</h3>
-          <p><strong>Code:</strong> {{ bundle.code }}</p>
-          <p><strong>Price:</strong> {{ bundle.price }}</p>
-          {% if bundle.description %}
-            <p>{{ bundle.description }}</p>
-          {% endif %}
-          <a href="{% url 'buy_bundle' %}?code={{ bundle.code }}" class="btn">Buy</a>
-        </div>
-      {% endfor %}
+        <a href="{% url 'buy_bundle' %}" class="btn btn-primary mt-3 px-4">
+            Buy Data Now
+        </a>
     </div>
-  {% else %}
-    <p>No bundles available at the moment. Please check back later.</p>
-  {% endif %}
 </div>
 {% endblock %}

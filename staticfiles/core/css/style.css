@@ -179,3 +179,48 @@ footer {
         font-size: 0.95rem;
     }
 }
+
+/* =========================================================
+   BUY BUNDLE PAGE - NETWORK CARD COLORS & STYLES
+========================================================= */
+
+/* Main card animation & layout */
+.bundle-card {
+  transition: transform 0.25s ease, box-shadow 0.25s ease;
+}
+.bundle-card:hover {
+  transform: scale(1.03);
+  box-shadow: 0 8px 22px rgba(0,0,0,0.12);
+}
+
+/* Network color themes */
+.net-mtn {
+  background-color: #ffeb3b; /* MTN yellow */
+  color: #000;
+}
+.net-telecel {
+  background-color: #e53935; /* Telecel red */
+  color: #fff;
+}
+.net-airteltigo {
+  background-color: #2196f3; /* AirtelTigo blue */
+  color: #fff;
+}
+.net-other {
+  background-color: #f8f9fa;
+  color: #000;
+}
+
+/* Inner card body */
+.bundle-card .card-body {
+  padding: 1.5rem;
+  border-radius: 12px;
+}
+
+/* Button contrast fix */
+.net-telecel .btn,
+.net-airteltigo .btn,
+.net-mtn .btn {
+  background-color: rgba(0,0,0,0.85);
+  color: #fff;
+}
