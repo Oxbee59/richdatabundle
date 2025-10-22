@@ -4,31 +4,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{% block title %}Rich Data Bundle{% endblock %}</title>
-    <link rel="stylesheet" href="{% static 'core/css/style.css' %}">
+    <title>RichData Bundle</title>
+    <link rel="stylesheet" href="{% static 'core/style.css' %}">
 </head>
 <body>
-    <header style="background-color:#6a0dad; color:#fff; padding:1rem; text-align:center;">
-        <h1>Rich Data Bundle</h1>
-        {% if user.is_authenticated %}
-            <nav>
-                <a href="{% url 'dashboard' %}" style="color:#fff; margin-right:1rem;">Dashboard</a>
-                <a href="{% url 'logout' %}" style="color:#fff;">Logout</a>
-            </nav>
-        {% else %}
-            <nav>
-                <a href="{% url 'login' %}" style="color:#fff; margin-right:1rem;">Login</a>
-                <a href="{% url 'signup' %}" style="color:#fff;">Sign Up</a>
-            </nav>
+    <nav class="navbar">
+        <div class="container">
+            <h2><a href="{% url 'dashboard' %}">RichData Bundle</a></h2>
+            <ul>
+                {% if user.is_authenticated %}
+                    <li><a href="{% url 'buy_bundle' %}">Buy Bundle</a></li>
+                    <li><a href="{% url 'my_purchases' %}">My Purchases</a></li>
+                    <li><a href="{% url 'profile' %}">Profile</a></li>
+                    <li><a href="{% url 'logout' %}">Logout</a></li>
+                {% else %}
+                    <li><a href="{% url 'signup' %}">Signup</a></li>
+                    <li><a href="{% url 'login' %}">Login</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <div class="content">
+        {% if messages %}
+            <div class="messages">
+                {% for message in messages %}
+                    <div class="alert {{ message.tags }}">{{ message }}</div>
+                {% endfor %}
+            </div>
         {% endif %}
-    </header>
 
-    <main style="padding:1rem;">
         {% block content %}{% endblock %}
-    </main>
-
-    <footer style="text-align:center; padding:1rem; background:#f5f0ff; color:#333;">
-        &copy; {{ year }} Rich Data Bundle
-    </footer>
+    </div>
 </body>
 </html>

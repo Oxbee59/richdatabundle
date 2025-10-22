@@ -1,21 +1,21 @@
+import json
 import hmac
 import hashlib
-import json
 import requests
-
-from django.shortcuts import render, redirect, get_object_or_404
+from django.conf import settings
+from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
-from django.conf import settings
 from django.http import HttpResponse
-
+from django.views.decorators.csrf import csrf_exempt
 from .models import Bundle, Purchase
 
 # ---------------------------
 # SIGNUP / LOGIN / LOGOUT
 # ---------------------------
+
 def signup_view(request):
     if request.method == "POST":
         username = request.POST.get("username")
@@ -27,8 +27,7 @@ def signup_view(request):
             return redirect("signup")
 
         user = User.objects.create_user(username=username, email=email, password=password)
-        user.save()
-        messages.success(request, "Account created successfully! You can log in now.")
+        messages.success(request, "Account created successfully! You can now log in.")
         return redirect("login")
 
     return render(request, "core/signup.html")
@@ -44,7 +43,7 @@ def login_view(request):
             login(request, user)
             return redirect("dashboard")
         else:
-            messages.error(request, "Invalid credentials")
+            messages.error(request, "Invalid credentials.")
             return redirect("login")
 
     return render(request, "core/login.html")
@@ -56,96 +55,228 @@ def logout_view(request):
 
 
 # ---------------------------
-# DASHBOARD (Show Bundles)
+# SYNC DATADASH PLANS
 # ---------------------------
+
+def sync_datadash_plans():
+    """Fetch /v1/plans from DataDash and sync with local Bundle model."""
+    base_url = getattr(settings, "DATADASH_BASE_URL", "https://datadashgh.com/agents/api")
+    url = f"{base_url}/v1/plans"
+    headers = {"Authorization": f"Bearer {settings.DATADASH_API_KEY}"}
+
+    try:
+        resp = requests.get(url, headers=headers, timeout=10)
+        if resp.status_code != 200:
+            print("Failed to fetch DataDash plans:", resp.text)
+            return None
+
+        plans = resp.json()
+        for plan in plans:
+            plan_id = plan.get("id") or plan.get("plan_id")
+            if not plan_id:
+                continue
+
+            Bundle.objects.update_or_create(
+                code=plan_id,
+                defaults={
+                    "name": plan.get("name", f"Plan {plan_id}"),
+                    "price": float(plan.get("price") or plan.get("selling_price") or 0),
+                    "description": plan.get("description", ""),
+                },
+            )
+        return plans
+    except Exception as e:
+        print("Error syncing DataDash plans:", e)
+        return None
+
+
+# ---------------------------
+# DASHBOARD VIEW
+# ---------------------------
+
 @login_required
 def dashboard(request):
-    bundles = Bundle.objects.all()
+    sync_datadash_plans()  # keep plans fresh
+    bundles = Bundle.objects.all().order_by("price")
     return render(request, "core/dashboard.html", {"bundles": bundles})
 
 
 # ---------------------------
-# BUY BUNDLE
+# BUY BUNDLE PAGE
 # ---------------------------
+
 @login_required
 def buy_bundle(request):
-    bundle_code = request.GET.get("code")
-    bundle = get_object_or_404(Bundle, code=bundle_code)
+    bundles = Bundle.objects.all().order_by("price")
 
     if request.method == "POST":
         recipient = request.POST.get("recipient")
-        amount = request.POST.get("amount")
+        bundle_id = request.POST.get("bundle_id")
+        bundle = Bundle.objects.get(id=bundle_id)
 
-        # Create a purchase record (unpaid)
-        purchase = Purchase.objects.create(
-            user=request.user,
-            bundle=bundle,
-            recipient=recipient,
-            amount=amount,
-            paid=False
-        )
-
-        # Initialize Paystack transaction
+        # Initialize Paystack payment
         paystack_url = "https://api.paystack.co/transaction/initialize"
         headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+        amount = int(float(bundle.price) * 100)
+
         data = {
-            "email": request.user.email or "customer@example.com",
-            "amount": int(float(amount) * 100),  # Convert to kobo
-            "metadata": {"purchase_id": purchase.id, "recipient": recipient},
+            "email": request.user.email or "noemail@example.com",
+            "amount": amount,
+            "metadata": {
+                "bundle_code": bundle.code,
+                "bundle_name": bundle.name,
+                "recipient": recipient,
+                "username": request.user.username,
+            },
             "callback_url": request.build_absolute_uri("/payment-success/"),
         }
 
-        response = requests.post(paystack_url, headers=headers, json=data)
-        if response.status_code == 200:
-            checkout_url = response.json()["data"]["authorization_url"]
-            return redirect(checkout_url)
-        else:
-            messages.error(request, "Error initializing payment. Try again.")
-            purchase.delete()  # Cleanup failed purchase
-            return redirect("dashboard")
+        try:
+            res = requests.post(paystack_url, headers=headers, json=data, timeout=15)
+            res.raise_for_status()
+            auth_url = res.json()["data"]["authorization_url"]
 
-    return render(request, "core/buy_bundle.html", {"bundle": bundle})
+            # Save pending purchase
+            Purchase.objects.create(
+                user=request.user,
+                bundle=bundle,
+                recipient=recipient,
+                amount=bundle.price,
+                paid=False,
+            )
+
+            return redirect(auth_url)
+        except Exception as e:
+            print("Paystack init error:", e)
+            messages.error(request, "Payment initialization failed.")
+            return redirect("buy_bundle")
+
+    return render(request, "core/buy_bundle.html", {"bundles": bundles})
 
 
 # ---------------------------
-# PAYMENT SUCCESS CALLBACK
+# PAYMENT SUCCESS (user redirected after Paystack)
 # ---------------------------
+
 @login_required
 def payment_success(request):
-    messages.success(request, "Payment successful! Your bundle will be processed shortly.")
-    return redirect("dashboard")
+    reference = request.GET.get("reference")
+    if not reference:
+        messages.error(request, "No payment reference found.")
+        return redirect("dashboard")
+
+    # Verify Paystack payment
+    headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+    verify_url = f"https://api.paystack.co/transaction/verify/{reference}"
+
+    try:
+        res = requests.get(verify_url, headers=headers)
+        data = res.json()
+        if data.get("data", {}).get("status") == "success":
+            metadata = data["data"]["metadata"]
+            bundle_code = metadata.get("bundle_code")
+            recipient = metadata.get("recipient")
+            bundle = Bundle.objects.filter(code=bundle_code).first()
+
+            purchase = Purchase.objects.filter(
+                user=request.user, bundle=bundle, recipient=recipient, paid=False
+            ).last()
+            if purchase:
+                purchase.paid = True
+                purchase.transaction_id = reference
+                purchase.save()
+
+            # Deliver via DataDash
+            order_payload = {
+                "plan_id": bundle_code,
+                "recipient": recipient,
+                "price": float(bundle.price),
+            }
+            dd_headers = {
+                "Authorization": f"Bearer {settings.DATADASH_API_KEY}",
+                "Content-Type": "application/json",
+            }
+
+            r = requests.post(f"{settings.DATADASH_BASE_URL}/v1/orders", headers=dd_headers, json=order_payload)
+            if r.status_code in (200, 201):
+                messages.success(request, f"Bundle successfully sent to {recipient}!")
+            else:
+                messages.warning(request, "Payment succeeded but bundle delivery pending.")
+        else:
+            messages.error(request, "Payment verification failed.")
+    except Exception as e:
+        print("Payment verification error:", e)
+        messages.error(request, "Payment verification failed. Please contact support.")
+
+    return redirect("my_purchases")
+
+
+# ---------------------------
+# MY PURCHASES + PROFILE
+# ---------------------------
+
+@login_required
+def my_purchases(request):
+    purchases = Purchase.objects.filter(user=request.user).order_by("-created_at")
+    return render(request, "core/my_purchases.html", {"purchases": purchases})
+
+
+@login_required
+def profile(request):
+    return render(request, "core/profile.html", {"user": request.user})
 
 
 # ---------------------------
 # PAYSTACK WEBHOOK
 # ---------------------------
-@login_required
+
+@csrf_exempt
 def paystack_webhook(request):
-    """Handle Paystack webhook events"""
     if request.method != "POST":
         return HttpResponse(status=405)
 
-    paystack_signature = request.headers.get("X-Paystack-Signature")
-    payload = request.body
+    signature = request.headers.get("X-Paystack-Signature", "")
     secret = settings.PAYSTACK_SECRET_KEY.encode()
-    hash_hmac = hmac.new(secret, payload, hashlib.sha512).hexdigest()
+    computed = hmac.new(secret, request.body, hashlib.sha512).hexdigest()
 
-    if paystack_signature != hash_hmac:
+    if not hmac.compare_digest(computed, signature):
+        print("Webhook signature mismatch")
         return HttpResponse(status=400)
 
-    event = json.loads(payload)
+    try:
+        event = json.loads(request.body)
+    except Exception as e:
+        print("Invalid webhook JSON:", e)
+        return HttpResponse(status=400)
 
-    # Handle successful charges
-    if event['event'] == 'charge.success':
-        metadata = event['data']['metadata']
-        purchase_id = metadata.get("purchase_id")
+    if event.get("event") == "charge.success":
+        data = event.get("data", {})
+        metadata = data.get("metadata", {})
+        bundle_code = metadata.get("bundle_code")
+        recipient = metadata.get("recipient")
+        amount = float(data.get("amount", 0)) / 100.0
 
-        try:
-            purchase = Purchase.objects.get(id=purchase_id)
+        purchase = Purchase.objects.filter(bundle__code=bundle_code, recipient=recipient, amount=amount, paid=False).last()
+        if purchase:
             purchase.paid = True
-            purchase.api_transaction_id = event['data']['reference']
+            purchase.transaction_id = data.get("reference")
             purchase.save()
-        except Purchase.DoesNotExist:
-            print(f"Purchase ID {purchase_id} not found")
+
+        # Deliver via DataDash
+        try:
+            headers = {
+                "Authorization": f"Bearer {settings.DATADASH_API_KEY}",
+                "Content-Type": "application/json",
+            }
+            payload = {
+                "plan_id": bundle_code,
+                "recipient": recipient,
+                "price": amount,
+            }
+            r = requests.post(f"{settings.DATADASH_BASE_URL}/v1/orders", headers=headers, json=payload)
+            if r.status_code not in (200, 201):
+                print("DataDash delivery failed:", r.text)
+        except Exception as e:
+            print("Webhook DataDash error:", e)
 
     return HttpResponse(status=200)

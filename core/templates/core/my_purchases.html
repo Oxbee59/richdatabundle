@@ -1,1 +1,35 @@
-{% extends 'core/base.html' %}{% block title %}My Purchases{% endblock %}{% block content %}<h2>My Purchases</h2>{% if purchases %}<table class="table"><thead><tr><th>Bundle</th><th>Recipient</th><th>Amount</th><th>Paid</th><th>Date</th></tr></thead><tbody>{% for p in purchases %}<tr><td>{{ p.bundle.network }} {{ p.bundle.size_label }}</td><td>{{ p.recipient }}</td><td>{{ p.amount }} GHS</td><td>{% if p.paid %}Yes{% else %}No{% endif %}</td><td>{{ p.created_at|date:"d M Y H:i" }}</td></tr>{% endfor %}</tbody></table>{% else %}<p>No purchases yet.</p>{% endif %}{% endblock %}
+{% extends "core/base.html" %}
+{% block content %}
+<div class="container">
+    <h2>My Purchases</h2>
+
+    {% if purchases %}
+        <table>
+            <thead>
+                <tr>
+                    <th>Bundle</th>
+                    <th>Recipient</th>
+                    <th>Amount (₦)</th>
+                    <th>Status</th>
+                    <th>Transaction ID</th>
+                    <th>Date</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for p in purchases %}
+                    <tr>
+                        <td>{{ p.bundle.name }}</td>
+                        <td>{{ p.recipient }}</td>
+                        <td>{{ p.amount }}</td>
+                        <td>{% if p.paid %}✅ Paid{% else %}⏳ Pending{% endif %}</td>
+                        <td>{{ p.transaction_id|default:"—" }}</td>
+                        <td>{{ p.created_at|date:"Y-m-d H:i" }}</td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p>You haven't made any purchases yet.</p>
+    {% endif %}
+</div>
+{% endblock %}

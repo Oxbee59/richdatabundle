@@ -1,21 +1,20 @@
-{% extends 'core/base.html' %}
-{% block title %}Buy Bundle{% endblock %}
-
+{% extends "core/base.html" %}
 {% block content %}
-<div class="auth-container">
-  <h2>Buy Bundle</h2>
-  <form method="POST">
-    {% csrf_token %}
+<div class="container">
+    <h2>Buy a Bundle</h2>
+    <form method="post">
+        {% csrf_token %}
+        <label for="bundle_id">Select Bundle:</label>
+        <select name="bundle_id" required>
+            {% for b in bundles %}
+                <option value="{{ b.id }}">{{ b.name }} — ₦{{ b.price }}</option>
+            {% endfor %}
+        </select>
 
-    <label>Receiver's Phone Number</label>
-    <input type="text" name="phone" placeholder="Enter recipient phone" required>
+        <label for="recipient">Recipient Number (e.g., 054XXXXXXX):</label>
+        <input type="text" name="recipient" placeholder="Enter recipient number" required>
 
-    <label>Amount (₦)</label>
-    <input type="number" name="amount" placeholder="Enter amount" step="0.01" required>
-
-    <button type="submit" class="btn">Pay & Buy</button>
-  </form>
-
-  <p><a href="{% url 'dashboard' %}">Back to Dashboard</a></p>
+        <button type="submit" class="btn">Proceed to Pay</button>
+    </form>
 </div>
 {% endblock %}
