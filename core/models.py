@@ -15,18 +15,17 @@ def save_profile(sender,instance,**kwargs): instance.profile.save()
 from django.db import models
 from django.contrib.auth.models import User
 
-class Bundle(models.Model):
-    name = models.CharField(max_length=120)
-    bundle_code = models.CharField(max_length=60, unique=True)  # existing identifier
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    is_active = models.BooleanField(default=True)
+import uuid
 
-    # NEW: code used by Datadash to identify plan exactly (e.g. "MTN1GB" or numeric id)
-    datadash_code = models.CharField(max_length=120, blank=True, null=True,
-                                     help_text="Exact Datadash plan id/code for vending")
+class Bundle(models.Model):
+    name = models.CharField(max_length=100)
+    code = models.CharField(max_length=50, unique=True)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+    description = models.TextField(blank=True, null=True)
 
     def __str__(self):
-        return f"{self.name} — {self.price}"
+        return f"{self.name} ({self.code})"
+
     
 class Purchase(models.Model):
     user = models.ForeignKey(User,on_delete=models.CASCADE)

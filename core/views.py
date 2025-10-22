@@ -1,12 +1,17 @@
+import hmac
+import hashlib
+import json
 import requests
-from django.shortcuts import render, redirect
+
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib import messages
 from django.contrib.auth.models import User
 from django.contrib.auth import authenticate, login, logout
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
-from django.http import JsonResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.http import HttpResponse
+
+from .models import Bundle, Purchase
 
 # ---------------------------
 # SIGNUP / LOGIN / LOGOUT
@@ -26,7 +31,7 @@ def signup_view(request):
         messages.success(request, "Account created successfully! You can log in now.")
         return redirect("login")
 
-    return render(request, "signup.html")
+    return render(request, "core/signup.html")
 
 
 def login_view(request):
@@ -42,7 +47,7 @@ def login_view(request):
             messages.error(request, "Invalid credentials")
             return redirect("login")
 
-    return render(request, "login.html")
+    return render(request, "core/login.html")
 
 
 def logout_view(request):
@@ -51,21 +56,12 @@ def logout_view(request):
 
 
 # ---------------------------
-# DASHBOARD (Bundles)
+# DASHBOARD (Show Bundles)
 # ---------------------------
 @login_required
 def dashboard(request):
-    base_url = settings.DATADASH_BASE_URL
-    bundles = []
-
-    try:
-        response = requests.get(f"{base_url}/bundles/")
-        if response.status_code == 200:
-            bundles = response.json()
-    except Exception as e:
-        print("Error fetching bundles:", e)
-
-    return render(request, "dashboard.html", {"bundles": bundles})
+    bundles = Bundle.objects.all()
+    return render(request, "core/dashboard.html", {"bundles": bundles})
 
 
 # ---------------------------
@@ -73,19 +69,29 @@ def dashboard(request):
 # ---------------------------
 @login_required
 def buy_bundle(request):
-    code = request.GET.get("code")
+    bundle_code = request.GET.get("code")
+    bundle = get_object_or_404(Bundle, code=bundle_code)
 
     if request.method == "POST":
-        phone = request.POST.get("phone")
+        recipient = request.POST.get("recipient")
         amount = request.POST.get("amount")
 
-        # Create Paystack payment session
+        # Create a purchase record (unpaid)
+        purchase = Purchase.objects.create(
+            user=request.user,
+            bundle=bundle,
+            recipient=recipient,
+            amount=amount,
+            paid=False
+        )
+
+        # Initialize Paystack transaction
         paystack_url = "https://api.paystack.co/transaction/initialize"
         headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
         data = {
             "email": request.user.email or "customer@example.com",
-            "amount": int(float(amount) * 100),  # kobo
-            "metadata": {"phone": phone, "bundle_code": code, "user": request.user.username},
+            "amount": int(float(amount) * 100),  # Convert to kobo
+            "metadata": {"purchase_id": purchase.id, "recipient": recipient},
             "callback_url": request.build_absolute_uri("/payment-success/"),
         }
 
@@ -95,9 +101,10 @@ def buy_bundle(request):
             return redirect(checkout_url)
         else:
             messages.error(request, "Error initializing payment. Try again.")
+            purchase.delete()  # Cleanup failed purchase
             return redirect("dashboard")
 
-    return render(request, "buy_bundle.html", {"bundle_code": code})
+    return render(request, "core/buy_bundle.html", {"bundle": bundle})
 
 
 # ---------------------------
@@ -112,28 +119,33 @@ def payment_success(request):
 # ---------------------------
 # PAYSTACK WEBHOOK
 # ---------------------------
-@csrf_exempt
+@login_required
 def paystack_webhook(request):
     """Handle Paystack webhook events"""
-    if request.method == "POST":
-        # Verify the signature
-        paystack_signature = request.headers.get("X-Paystack-Signature")
-        payload = request.body
-        secret = settings.PAYSTACK_SECRET_KEY.encode()
-        hash_hmac = hmac.new(secret, payload, hashlib.sha512).hexdigest()
+    if request.method != "POST":
+        return HttpResponse(status=405)
 
-        if paystack_signature != hash_hmac:
-            return HttpResponse(status=400)
+    paystack_signature = request.headers.get("X-Paystack-Signature")
+    payload = request.body
+    secret = settings.PAYSTACK_SECRET_KEY.encode()
+    hash_hmac = hmac.new(secret, payload, hashlib.sha512).hexdigest()
 
-        event = json.loads(payload)
+    if paystack_signature != hash_hmac:
+        return HttpResponse(status=400)
 
-        # Handle event types
-        if event['event'] == 'charge.success':
-            # Example: update user balance, mark order paid, etc.
-            reference = event['data']['reference']
-            # TODO: Add your logic here
-            print(f"Payment successful: {reference}")
+    event = json.loads(payload)
 
-        # Respond to Paystack
-        return HttpResponse(status=200)
-    return HttpResponse(status=405)
+    # Handle successful charges
+    if event['event'] == 'charge.success':
+        metadata = event['data']['metadata']
+        purchase_id = metadata.get("purchase_id")
+
+        try:
+            purchase = Purchase.objects.get(id=purchase_id)
+            purchase.paid = True
+            purchase.api_transaction_id = event['data']['reference']
+            purchase.save()
+        except Purchase.DoesNotExist:
+            print(f"Purchase ID {purchase_id} not found")
+
+    return HttpResponse(status=200)

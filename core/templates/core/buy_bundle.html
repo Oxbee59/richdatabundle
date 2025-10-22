@@ -1,21 +1,21 @@
 {% extends 'core/base.html' %}
 {% block title %}Buy Bundle{% endblock %}
+
 {% block content %}
-<div class="buy-container">
-  <h2>Buy Data Bundle</h2>
+<div class="auth-container">
+  <h2>Buy Bundle</h2>
   <form method="POST">
     {% csrf_token %}
-    <label>Phone Number</label>
-    <input type="text" name="phone" placeholder="e.g. 0541234567" required>
 
-    <label>Amount (GHS)</label>
-    <input type="number" name="amount" step="0.01" required>
+    <label>Receiver's Phone Number</label>
+    <input type="text" name="phone" placeholder="Enter recipient phone" required>
 
-    <input type="hidden" name="bundle_code" value="{{ bundle_code }}">
+    <label>Amount (₦)</label>
+    <input type="number" name="amount" placeholder="Enter amount" step="0.01" required>
 
-    <button type="submit" class="btn">Proceed to Paystack</button>
+    <button type="submit" class="btn">Pay & Buy</button>
   </form>
 
-  <p><a href="{% url 'dashboard' %}">← Back to Dashboard</a></p>
+  <p><a href="{% url 'dashboard' %}">Back to Dashboard</a></p>
 </div>
 {% endblock %}
