@@ -1,20 +1,95 @@
-{% extends "core/base.html" %}
+{% extends 'base.html' %}
+{% load static %}
+
 {% block content %}
-<div class="container">
-    <h2>Buy a Bundle</h2>
-    <form method="post">
-        {% csrf_token %}
-        <label for="bundle_id">Select Bundle:</label>
-        <select name="bundle_id" required>
-            {% for b in bundles %}
-                <option value="{{ b.id }}">{{ b.name }} — ₦{{ b.price }}</option>
-            {% endfor %}
-        </select>
+<div class="buy-bundle-container">
+  <h2 class="title">Buy Data Bundle</h2>
 
-        <label for="recipient">Recipient Number (e.g., 054XXXXXXX):</label>
-        <input type="text" name="recipient" placeholder="Enter recipient number" required>
+  <form method="POST" action="{% url 'buy_bundle' %}" class="bundle-form">
+    {% csrf_token %}
+    
+    <div class="bundle-list">
+      {% for bundle in bundles %}
+      <label class="bundle-card">
+        <input type="radio" name="bundle_id" value="{{ bundle.id }}" required>
+        <div class="bundle-details">
+          <p class="network">{{ bundle.network }}</p>
+          <p class="size">{{ bundle.size }} GB</p>
+          <p class="price">₵{{ bundle.price }}</p>
+        </div>
+      </label>
+      {% endfor %}
+    </div>
 
-        <button type="submit" class="btn">Proceed to Pay</button>
-    </form>
+    <div class="recipient-section">
+      <label for="recipient">Recipient Number</label>
+      <input type="text" name="recipient" id="recipient" placeholder="e.g. 0541234567" required>
+    </div>
+
+    <button type="submit" class="buy-btn">Buy Now</button>
+  </form>
 </div>
+
+<style>
+.buy-bundle-container {
+  max-width: 700px;
+  margin: 40px auto;
+  padding: 25px;
+  background: #ffffff;
+  border-radius: 12px;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+}
+
+.title {
+  text-align: center;
+  margin-bottom: 20px;
+  color: #003366;
+}
+
+.bundle-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin-bottom: 20px;
+}
+
+.bundle-card {
+  border: 2px solid #003366;
+  border-radius: 10px;
+  padding: 15px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+  color: #003366;
+}
+
+.bundle-card:hover {
+  background: #003366;
+  color: #fff;
+}
+
+.bundle-card input {
+  display: none;
+}
+
+.recipient-section {
+  margin-bottom: 20px;
+}
+
+.buy-btn {
+  width: 100%;
+  padding: 12px;
+  background-color: #003366;
+  color: white;
+  font-weight: bold;
+  border: none;
+  border-radius: 8px;
+  cursor: pointer;
+  transition: 0.3s;
+}
+
+.buy-btn:hover {
+  background-color: #0055a5;
+}
+</style>
 {% endblock %}
