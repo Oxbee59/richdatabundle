@@ -168,3 +168,7 @@ def paystack_webhook(request):
             pass
 
     return HttpResponse(status=200)
+@login_required
+def profile(request):
+    user = request.user
+    return render(request, "core/profile.html", {"user": user})
