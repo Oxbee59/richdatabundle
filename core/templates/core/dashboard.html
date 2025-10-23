@@ -1,56 +1,8 @@
-{% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="{% static 'core/style.css' %}">
-<title>Dashboard</title>
-</head>
-<body>
-<header>
-<nav class="navbar">
-  <a href="{% url 'dashboard' %}">Home</a>
-  <a href="{% url 'buy_bundle' %}">Buy Bundle</a>
-  <a href="{% url 'my_purchases' %}">My Purchases</a>
-  <a href="{% url 'profile' %}">Profile</a>
-  <a href="{% url 'logout' %}">Logout</a>
-</nav>
-</header>
-
-<main class="container">
-<h2>Welcome, {{ request.user.username }}</h2>
-<p class="trust-msg">Trusted, secure, and fast data delivery!</p>
-
-<div class="bundles">
-  {% for bundle in bundles %}
-  <div class="bundle-card">
-    <h3>{{ bundle.name }}</h3>
-    <p>₦{{ bundle.price }}</p>
-    <form method="post" action="{% url 'buy_bundle' %}">
-      {% csrf_token %}
-      <input type="hidden" name="bundle_id" value="{{ bundle.id }}">
-      <input type="text" name="recipient" placeholder="Recipient Number" required>
-      <button type="submit">Buy</button>
-    </form>
-  </div>
-  {% endfor %}
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="welcome-box">
+    <h2>Welcome, {{ request.user.first_name|default:request.user.username }}</h2>
+    <p>Trusted, secure, and fast data delivery!</p>
+    <a href="{% url 'buy_bundle' %}" class="btn">Buy Bundles</a>
 </div>
-
-<h3>Recent Purchases</h3>
-<div class="purchases">
-  {% for purchase in purchases %}
-  <div class="purchase-card">
-    <p>{{ purchase.bundle.name }} → {{ purchase.recipient }}</p>
-    <p>{{ purchase.status }} at {{ purchase.paid_at }}</p>
-  </div>
-  {% empty %}
-  <p>No purchases yet.</p>
-  {% endfor %}
-</div>
-</main>
-
-<footer>
-<p>C RichData Bundle_ All rights reserved</p>
-</footer>
-</body>
-</html>
+{% endblock %}

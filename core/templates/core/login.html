@@ -1,19 +1,19 @@
 {% extends 'core/base.html' %}
-{% block title %}Login{% endblock %}
 {% block content %}
-<div class="auth-container">
-  <h2>Login</h2>
-  <form method="POST">
-    {% csrf_token %}
-    <label>Username</label>
-    <input type="text" name="username" required>
-
-    <label>Password</label>
-    <input type="password" name="password" required>
-
-    <button type="submit" class="btn">Login</button>
-  </form>
-
-  <p>Don't have an account? <a href="{% url 'signup' %}">Create one</a></p>
+<div class="auth-form">
+    <h2>{% if form %}Signup{% else %}Login{% endif %}</h2>
+    <form method="post">
+        {% csrf_token %}
+        {% if form %}
+            {{ form.as_p }}
+        {% else %}
+            <input type="text" name="username" placeholder="Username" required>
+            <input type="password" name="password" placeholder="Password" required>
+        {% endif %}
+        <button type="submit" class="btn-primary">{% if form %}Signup{% else %}Login{% endif %}</button>
+    </form>
+    {% if not form %}
+    <p>Don't have an account? <a href="{% url 'signup' %}">Signup</a></p>
+    {% endif %}
 </div>
 {% endblock %}

@@ -22,6 +22,9 @@ class Bundle(models.Model):
     code = models.CharField(max_length=50, unique=True)
     price = models.DecimalField(max_digits=10, decimal_places=2)
     description = models.TextField(blank=True, null=True)
+    color = models.CharField(max_length=20, default="#3498db")
+    logo = models.CharField(max_length=200, blank=True, help_text="Static path to network logo (e.g. 'images/mtn.png')")
+    network = models.CharField(max_length=50, default="MTN")
 
     def __str__(self):
         return f"{self.name} ({self.code})"

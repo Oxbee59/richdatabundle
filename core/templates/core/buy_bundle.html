@@ -1,44 +1,29 @@
+{% extends 'core/base.html' %}
 {% load static %}
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<link rel="stylesheet" href="{% static 'core/style.css' %}">
-<title>Buy Bundle</title>
-</head>
-<body>
-<header>
-<nav class="navbar">
-  <a href="{% url 'dashboard' %}">Home</a>
-  <a href="{% url 'buy_bundle' %}">Buy Bundle</a>
-  <a href="{% url 'my_purchases' %}">My Purchases</a>
-  <a href="{% url 'profile' %}">Profile</a>
-  <a href="{% url 'logout' %}">Logout</a>
-</nav>
-</header>
+{% block content %}
 
-<main class="container">
-<h2>Buy Bundles</h2>
-<p class="trust-msg">Secure and instant data delivery!</p>
+<h2 class="page-title">Buy Bundles</h2>
 
-<div class="bundles">
-  {% for bundle in bundles %}
-  <div class="bundle-card">
-    <h3>{{ bundle.name }}</h3>
-    <p>₦{{ bundle.price }}</p>
-    <form method="post">
-      {% csrf_token %}
-      <input type="hidden" name="bundle_id" value="{{ bundle.id }}">
-      <input type="text" name="recipient" placeholder="Recipient Number" required>
-      <button type="submit">Buy</button>
-    </form>
-  </div>
-  {% endfor %}
+<div class="bundles-container">
+    {% for bundle in bundles %}
+    <div class="bundle-card" style="border-left: 6px solid {{ bundle.color }};">
+        <div class="bundle-header">
+            <img src="{% static bundle.logo %}" alt="{{ bundle.network }} logo" class="bundle-logo">
+            <span class="bundle-name">{{ bundle.network }}</span>
+        </div>
+
+        <div class="bundle-price">{{ bundle.price }} GHS</div>
+
+        <form method="post" action="{% url 'buy_bundle' %}">
+            {% csrf_token %}
+            <input type="text" name="recipient" placeholder="Recipient Number" required>
+            <input type="hidden" name="bundle_id" value="{{ bundle.id }}">
+            <button type="submit" class="btn-primary">Buy</button>
+        </form>
+    </div>
+    {% empty %}
+        <p>No bundles available.</p>
+    {% endfor %}
 </div>
-</main>
 
-<footer>
-<p>C RichData Bundle_ All rights reserved</p>
-</footer>
-</body>
-</html>
+{% endblock %}

@@ -1,0 +1,8 @@
+{% extends 'core/base.html' %}
+{% block content %}
+<div class="success-page">
+    <h2>Payment Successful ✅</h2>
+    <p>Your bundle is being delivered shortly. You can check your purchase history below.</p>
+    <a href="{% url 'my_purchases' %}" class="btn-primary">View My Purchases</a>
+</div>
+{% endblock %}
