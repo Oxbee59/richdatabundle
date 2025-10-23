@@ -1,17 +1,27 @@
 {% extends 'core/base.html' %}
 {% block content %}
-<h2>My Purchases</h2>
+<h2 class="mb-3">My Purchases</h2>
+
 {% if purchases %}
-    {% for purchase in purchases %}
-    <div class="card">
-        <p><strong>Network:</strong> {{ purchase.bundle.network }}</p>
-        <p><strong>Amount:</strong> {{ purchase.bundle.amount }} GHS</p>
-        <p><strong>Recipient:</strong> {{ purchase.recipient }}</p>
-        <p><strong>Status:</strong> {% if purchase.paid %}Paid{% else %}Pending{% endif %}</p>
-        <p><strong>Date:</strong> {{ purchase.paid_at|date:"M d, Y H:i" }}</p>
+  <div class="list-group">
+    {% for p in purchases %}
+    <div class="list-group-item">
+      <div class="d-flex justify-content-between">
+        <div>
+          <div class="fw-bold">{{ p.bundle.name if p.bundle else "Bundle" }}</div>
+          <div class="small text-muted">Recipient: {{ p.recipient }}</div>
+        </div>
+        <div class="text-end">
+          <div class="fw-bold">₵{{ p.amount }}</div>
+          <div class="small">{{ p.paid|yesno:"Paid,Pending" }}</div>
+          <div class="small text-muted">{{ p.paid_at|default:p.created_at }}</div>
+        </div>
+      </div>
+      <div class="mt-2 small text-muted">Transaction: {{ p.api_transaction_id }}</div>
     </div>
     {% endfor %}
+  </div>
 {% else %}
-<p>No purchases yet.</p>
+  <div class="alert alert-info">No purchases yet.</div>
 {% endif %}
 {% endblock %}
