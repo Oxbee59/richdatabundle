@@ -1,8 +1,11 @@
 {% extends 'core/base.html' %}
 {% block content %}
-<div class="error-page">
+<div class="status-page failed">
+  <div class="status-card">
+    <img src="{% static 'images/failed-icon.png' %}" alt="Failed" class="status-icon">
     <h2>Payment Failed ❌</h2>
     <p>Something went wrong or your payment was cancelled. Please try again.</p>
-    <a href="{% url 'buy_bundle' %}" class="btn-primary">Back to Buy Bundles</a>
+    <a href="{% url 'buy_bundle' %}" class="btn-primary">Try Again</a>
+  </div>
 </div>
 {% endblock %}

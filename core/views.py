@@ -158,8 +158,9 @@ def profile(request):
     return render(request, "core/profile.html", {"user": request.user})
 @login_required
 def payment_success(request):
-    messages.success(request, "Payment successful! Your bundle will be delivered shortly.")
+    messages.success(request, "Your payment was successful! 🎉")
     return render(request, "core/payment_success.html")
+
 @login_required
 def payment_failed(request):
     messages.error(request, "Payment failed or was cancelled. Please try again.")

@@ -1,51 +1,58 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>RichData Bundles</title>
-    <link rel="stylesheet" href="{% static 'core/css/style.css' %}">
-    <link href="https://fonts.googleapis.com/css2?family=Roboto:wght@400;700&display=swap" rel="stylesheet">
-</head>
-<body>
-    <header>
-        <div class="nav-container">
-            <div class="logo">RichData Bundles</div>
-            <div class="menu-toggle" id="menu-toggle">&#9776;</div>
-            <nav id="nav-menu" class="hidden">
-                <ul>
-                    {% if user.is_authenticated %}
-                        <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
-                        <li><a href="{% url 'buy_bundle' %}">Buy Bundles</a></li>
-                        <li><a href="{% url 'my_purchases' %}">My Purchases</a></li>
-                        <li><a href="{% url 'profile' %}">Profile</a></li>
-                        <li><a href="{% url 'logout' %}">Logout</a></li>
-                    {% else %}
-                        <li><a href="{% url 'login' %}">Login</a></li>
-                        <li><a href="{% url 'signup' %}">Signup</a></li>
-                    {% endif %}
-                </ul>
-            </nav>
-        </div>
-    </header>
+<style>
+  body {
+    font-family: "Poppins", sans-serif;
+    background: #f8fafc;
+    margin: 0;
+    padding: 0;
+  }
 
-    <main>
-        {% if messages %}
-            <div class="messages">
-                {% for message in messages %}
-                    <p class="{{ message.tags }}">{{ message }}</p>
-                {% endfor %}
-            </div>
-        {% endif %}
-        {% block content %}{% endblock %}
-    </main>
+  .status-page {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 80vh;
+  }
 
-    <script>
-        const toggle = document.getElementById('menu-toggle');
-        const nav = document.getElementById('nav-menu');
-        toggle.addEventListener('click', () => {
-            nav.classList.toggle('hidden');
-        });
-    </script>
-</body>
-</html>
+  .status-card {
+    background: white;
+    border-radius: 20px;
+    box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+    text-align: center;
+    padding: 2rem;
+    width: 90%;
+    max-width: 400px;
+  }
+
+  .status-card h2 {
+    margin-top: 1rem;
+    font-size: 1.6rem;
+  }
+
+  .status-card p {
+    color: #555;
+    margin-bottom: 1.5rem;
+  }
+
+  .btn-primary {
+    display: inline-block;
+    background-color: #1e90ff;
+    color: white;
+    text-decoration: none;
+    padding: 10px 20px;
+    border-radius: 10px;
+    font-weight: 600;
+  }
+
+  .status-icon {
+    width: 80px;
+    height: 80px;
+  }
+
+  .success .status-card {
+    border-left: 6px solid #22c55e;
+  }
+
+  .failed .status-card {
+    border-left: 6px solid #ef4444;
+  }
+</style>
