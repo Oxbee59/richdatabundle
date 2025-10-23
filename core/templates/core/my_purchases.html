@@ -1,63 +1,40 @@
-{% extends 'core/base.html' %}
 {% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="{% static 'core/style.css' %}">
+<title>My Purchases</title>
+</head>
+<body>
+<header>
+<nav class="navbar">
+  <a href="{% url 'dashboard' %}">Home</a>
+  <a href="{% url 'buy_bundle' %}">Buy Bundle</a>
+  <a href="{% url 'my_purchases' %}">My Purchases</a>
+  <a href="{% url 'profile' %}">Profile</a>
+  <a href="{% url 'logout' %}">Logout</a>
+</nav>
+</header>
 
-{% block content %}
-<style>
-  .purchase-section {
-    padding: 2rem 0;
-  }
-  .purchase-title {
-    text-align: center;
-    color: #004aad;
-    font-weight: 700;
-    margin-bottom: 1.5rem;
-  }
-  .purchase-grid {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 1rem;
-    justify-content: center;
-  }
-  .purchase-card {
-    background: #fff;
-    border-radius: 14px;
-    box-shadow: 0 4px 18px rgba(0,0,0,0.07);
-    width: 260px;
-    padding: 1.2rem;
-    text-align: center;
-    border-top: 4px solid #004aad;
-  }
-  .purchase-card h5 { margin-bottom: .3rem; font-weight:700; color:#222; }
-  .purchase-card p { margin: .3rem 0; color:#444; font-size:.9rem; }
-  .purchase-card .success {
-    background: #dff7e3;
-    color: #187a32;
-    font-weight: 600;
-    border-radius: 20px;
-    padding: .3rem .8rem;
-    display: inline-block;
-    margin-top: .5rem;
-  }
-</style>
+<main class="container">
+<h2>My Purchases</h2>
+<p class="trust-msg">All your completed transactions are shown below.</p>
 
-<div class="container purchase-section">
-  <h3 class="purchase-title">My Purchases</h3>
-
-  {% if purchases %}
-    <div class="purchase-grid">
-      {% for purchase in purchases %}
-        <div class="purchase-card">
-          <h5>{{ purchase.bundle_name }}</h5>
-          <p>Network: {{ purchase.network }}</p>
-          <p>Amount: ₵{{ purchase.amount }}</p>
-          <p>Recipient: {{ purchase.recipient }}</p>
-          <p>Transaction ID: {{ purchase.transaction_id }}</p>
-          <span class="success">Success</span>
-        </div>
-      {% endfor %}
-    </div>
-  {% else %}
-    <p class="text-center text-muted">No purchases yet. Head over to <a href="{% url 'buy_bundle' %}" style="color:#004aad;">Buy Bundle</a> to make your first purchase.</p>
-  {% endif %}
+<div class="purchases">
+  {% for purchase in purchases %}
+  <div class="purchase-card">
+    <p>{{ purchase.bundle.name }} → {{ purchase.recipient }}</p>
+    <p>Status: <strong>{{ purchase.status }}</strong> | Paid at: {{ purchase.paid_at }}</p>
+  </div>
+  {% empty %}
+  <p>No purchases yet.</p>
+  {% endfor %}
 </div>
-{% endblock %}
+</main>
+
+<footer>
+<p>C RichData Bundle_ All rights reserved</p>
+</footer>
+</body>
+</html>

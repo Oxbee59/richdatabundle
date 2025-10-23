@@ -28,11 +28,11 @@ class Bundle(models.Model):
 
     
 class Purchase(models.Model):
-    user = models.ForeignKey(User,on_delete=models.CASCADE)
-    bundle = models.ForeignKey(Bundle,on_delete=models.CASCADE)
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
     recipient = models.CharField(max_length=40)
-    amount = models.DecimalField(max_digits=8,decimal_places=2)
+    bundle = models.ForeignKey(Bundle, on_delete=models.CASCADE)
+    amount = models.DecimalField(max_digits=8, decimal_places=2)
     paid = models.BooleanField(default=False)
-    api_transaction_id = models.CharField(max_length=255,blank=True,null=True)
     created_at = models.DateTimeField(auto_now_add=True)
-    def __str__(self): return f"{self.user.username} -> {self.recipient} | {self.bundle}"
+    paid_at = models.DateTimeField(null=True, blank=True)  # <-- Add this
+    api_transaction_id = models.CharField(max_length=50, null=True, blank=True)

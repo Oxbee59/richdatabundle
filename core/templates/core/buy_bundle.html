@@ -1,52 +1,44 @@
-{% extends 'core/base.html' %}
 {% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="{% static 'core/style.css' %}">
+<title>Buy Bundle</title>
+</head>
+<body>
+<header>
+<nav class="navbar">
+  <a href="{% url 'dashboard' %}">Home</a>
+  <a href="{% url 'buy_bundle' %}">Buy Bundle</a>
+  <a href="{% url 'my_purchases' %}">My Purchases</a>
+  <a href="{% url 'profile' %}">Profile</a>
+  <a href="{% url 'logout' %}">Logout</a>
+</nav>
+</header>
 
-{% block content %}
-<div class="container mt-5">
-  <h2 class="text-center mb-4 text-primary fw-bold">Buy Data Bundle</h2>
+<main class="container">
+<h2>Buy Bundles</h2>
+<p class="trust-msg">Secure and instant data delivery!</p>
 
-  <form method="POST" action="{% url 'buy_bundle' %}" class="mt-4">
-    {% csrf_token %}
-
-    <!-- Recipient Number -->
-    <div class="form-group mb-4 text-center">
-      <label for="recipient" class="form-label fw-semibold">Recipient Number</label>
-      <input type="text" name="recipient" id="recipient" placeholder="e.g. 054XXXXXXXX"
-             class="form-control text-center p-3 rounded-3 border border-primary" required>
-    </div>
-
-    <!-- Bundle Cards -->
-    <div class="row justify-content-center">
-      {% if bundles %}
-        {% for bundle in bundles %}
-          {% with name_lower=bundle.name|lower %}
-          <div class="col-lg-3 col-md-4 col-sm-6 mb-4">
-            <!-- apply network class instead of inline styles -->
-            <div class="card bundle-card text-center shadow border-0 rounded-4 p-3
-                        {% if 'mtn' in name_lower %}net-mtn{% elif 'telecel' in name_lower %}net-telecel
-                        {% elif 'tigo' in name_lower or 'airteltigo' in name_lower %}net-airteltigo{% else %}net-other{% endif %}">
-              <div class="card-body">
-                <h5 class="fw-bold mb-2">{{ bundle.name }}</h5>
-                <p class="mb-1">
-                  {% if 'mtn' in name_lower %}MTN{% elif 'telecel' in name_lower %}Telecel
-                  {% elif 'tigo' in name_lower or 'airteltigo' in name_lower %}AirtelTigo{% else %}Other{% endif %}
-                </p>
-                <h4 class="fw-bold mb-3">₵{{ bundle.price }}</h4>
-                <button type="submit" name="bundle_id" value="{{ bundle.id }}"
-                        class="btn btn-dark rounded-pill px-4 py-2 w-100">
-                  Buy Now
-                </button>
-              </div>
-            </div>
-          </div>
-          {% endwith %}
-        {% endfor %}
-      {% else %}
-        <div class="col-12 text-center mt-4">
-          <p class="text-muted fs-5">No bundles available yet. Please check back soon!</p>
-        </div>
-      {% endif %}
-    </div>
-  </form>
+<div class="bundles">
+  {% for bundle in bundles %}
+  <div class="bundle-card">
+    <h3>{{ bundle.name }}</h3>
+    <p>₦{{ bundle.price }}</p>
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="bundle_id" value="{{ bundle.id }}">
+      <input type="text" name="recipient" placeholder="Recipient Number" required>
+      <button type="submit">Buy</button>
+    </form>
+  </div>
+  {% endfor %}
 </div>
-{% endblock %}
+</main>
+
+<footer>
+<p>C RichData Bundle_ All rights reserved</p>
+</footer>
+</body>
+</html>
