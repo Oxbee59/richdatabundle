@@ -15,21 +15,25 @@
       {% for bundle in bundles %}
         {% with name_lower=bundle.name|lower %}
           {% if 'mtn' in name_lower %}
-            {% with color="#ffcc00" logo="images/mtn.png" %}
+            {% set_color = '#ffcc00' %}
+            {% set_logo = 'images/mtn.png' %}
           {% elif 'telecel' in name_lower %}
-            {% with color="#e60000" logo="images/telecel.png" %}
+            {% set_color = '#e60000' %}
+            {% set_logo = 'images/telecel.png' %}
           {% elif 'tigo' in name_lower or 'airteltigo' in name_lower %}
-            {% with color="#0033a0" logo="images/airteltigo.png" %}
+            {% set_color = '#0033a0' %}
+            {% set_logo = 'images/airteltigo.png' %}
           {% else %}
-            {% with color="#6c757d" logo="images/default.png" %}
+            {% set_color = '#6c757d' %}
+            {% set_logo = 'images/default.png' %}
           {% endif %}
 
           <div class="col-12 col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm border-0" style="border-top: 6px solid {{ color }};">
+            <div class="card h-100 shadow-sm border-0" style="border-top: 6px solid {{ set_color }};">
               <div class="card-body d-flex flex-column justify-content-between">
                 <div class="d-flex align-items-center justify-content-between mb-2">
                   <div class="fw-bold text-dark">{{ bundle.name }}</div>
-                  <img src="{% static logo %}" alt="Network logo" style="width:35px; height:35px; object-fit:contain;">
+                  <img src="{% static set_logo %}" alt="Network logo" style="width:35px; height:35px; object-fit:contain;">
                 </div>
 
                 <div class="flex-fill d-flex align-items-end justify-content-between">
@@ -44,8 +48,6 @@
               </div>
             </div>
           </div>
-
-          {% endwith %}
         {% endwith %}
       {% empty %}
         <div class="col-12">
