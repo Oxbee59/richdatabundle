@@ -1,27 +1,35 @@
 {% extends 'core/base.html' %}
 {% block content %}
-<h2 class="mb-3">My Purchases</h2>
+<h2 class="text-center mb-4">My Purchases</h2>
 
-{% if purchases %}
-  <div class="list-group">
-    {% for p in purchases %}
-    <div class="list-group-item">
-      <div class="d-flex justify-content-between">
-        <div>
-          <div class="fw-bold">{{ p.bundle.name if p.bundle else "Bundle" }}</div>
-          <div class="small text-muted">Recipient: {{ p.recipient }}</div>
-        </div>
-        <div class="text-end">
-          <div class="fw-bold">₵{{ p.amount }}</div>
-          <div class="small">{{ p.paid|yesno:"Paid,Pending" }}</div>
-          <div class="small text-muted">{{ p.paid_at|default:p.created_at }}</div>
-        </div>
-      </div>
-      <div class="mt-2 small text-muted">Transaction: {{ p.api_transaction_id }}</div>
-    </div>
-    {% endfor %}
-  </div>
-{% else %}
-  <div class="alert alert-info">No purchases yet.</div>
-{% endif %}
+<table class="table table-striped text-center">
+    <thead>
+        <tr>
+            <th>Network</th>
+            <th>Recipient</th>
+            <th>Amount (GHS)</th>
+            <th>Status</th>
+            <th>Date</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for p in purchases %}
+        <tr>
+            <td>{{ p.bundle.network }}</td>
+            <td>{{ p.recipient }}</td>
+            <td>{{ p.amount }}</td>
+            <td>
+                {% if p.paid %}
+                    <span class="badge bg-success">Paid</span>
+                {% else %}
+                    <span class="badge bg-warning">Pending</span>
+                {% endif %}
+            </td>
+            <td>{{ p.created_at|date:"M d, Y - H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr><td colspan="5">No purchases yet.</td></tr>
+        {% endfor %}
+    </tbody>
+</table>
 {% endblock %}
