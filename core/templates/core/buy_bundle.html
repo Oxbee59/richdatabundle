@@ -11,52 +11,33 @@
       <input id="recipient" name="recipient" type="text" class="form-control" placeholder="054XXXXXXXX" required>
     </div>
 
-    <div class="row g-3">
-      {% for bundle in bundles %}
-        {% with name_lower=bundle.name|lower %}
-          {% if 'mtn' in name_lower %}
-            {% set_color = '#ffcc00' %}
-            {% set_logo = 'images/mtn.png' %}
-          {% elif 'telecel' in name_lower %}
-            {% set_color = '#e60000' %}
-            {% set_logo = 'images/telecel.png' %}
-          {% elif 'tigo' in name_lower or 'airteltigo' in name_lower %}
-            {% set_color = '#0033a0' %}
-            {% set_logo = 'images/airteltigo.png' %}
-          {% else %}
-            {% set_color = '#6c757d' %}
-            {% set_logo = 'images/default.png' %}
-          {% endif %}
-
-          <div class="col-12 col-md-6 col-lg-4">
-            <div class="card h-100 shadow-sm border-0" style="border-top: 6px solid {{ set_color }};">
-              <div class="card-body d-flex flex-column justify-content-between">
-                <div class="d-flex align-items-center justify-content-between mb-2">
-                  <div class="fw-bold text-dark">{{ bundle.name }}</div>
-                  <img src="{% static set_logo %}" alt="Network logo" style="width:35px; height:35px; object-fit:contain;">
-                </div>
-
-                <div class="flex-fill d-flex align-items-end justify-content-between">
-                  <div>
-                    <div class="h5 mb-0 fw-bold text-dark">₵{{ bundle.price }}</div>
-                    <div class="text-muted small">Inclusive</div>
-                  </div>
-                  <button type="submit" class="btn btn-dark btn-sm buy-btn" name="bundle_id" value="{{ bundle.id }}">
-                    Buy
-                  </button>
-                </div>
-              </div>
+    <div class="bundle-list">
+        {% for bundle in bundles %}
+            {% if "MTN" in bundle.network %}
+                {% with color="yellow" logo="/static/core/images/mtn.png" %}
+            {% elif "AIRTEL" in bundle.network %}
+                {% with color="red" logo="/static/core/images/airtel.png" %}
+            {% elif "GLO" in bundle.network %}
+                {% with color="green" logo="/static/core/images/glo.png" %}
+            {% elif "9MOBILE" in bundle.network %}
+                {% with color="lime" logo="/static/core/images/9mobile.png" %}
+            {% elif "TELECEL" in bundle.network %}
+                {% with color="blue" logo="/static/core/images/telecel.png" %}
+            {% else %}
+                {% with color="gray" logo="/static/core/images/default.png" %}
+            {% endif %}
+            
+            <div class="bundle-card" style="border: 2px solid {{ color }};">
+                <img src="{{ logo }}" alt="{{ bundle.network }} Logo" style="height:50px;">
+                <p><strong>{{ bundle.network }}</strong></p>
+                <p>{{ bundle.plan_name }}</p>
+                <p>₦{{ bundle.price }}</p>
+                <a href="{% url 'process_payment' bundle.id %}" class="btn btn-primary">Buy Now</a>
             </div>
-          </div>
-        {% endwith %}
-      {% empty %}
-        <div class="col-12">
-          <div class="alert alert-info text-center">
-            No bundles available yet. Please check back soon.
-          </div>
-        </div>
-      {% endfor %}
+
+            {% endwith %}
+        {% endfor %}
     </div>
-  </form>
 </div>
+
 {% endblock %}
