@@ -17,38 +17,39 @@
 
     <div class="row g-3">
       {% for bundle in bundles %}
-      <div class="col-12 col-sm-6 col-md-4">
-        <div class="card h-100 shadow-sm border-0"
-             style="border-top: 6px solid {{ bundle.color|default:'#6c757d' }};">
-          <div class="card-body d-flex flex-column justify-content-between">
-            <div>
-              <div class="fw-bold">{{ bundle.name }}</div>
-              {% if bundle.description %}
-              <div class="small text-muted mb-2">{{ bundle.description }}</div>
-              {% endif %}
-            </div>
+        {% with name_lower=bundle.name|lower %}
+          {% if 'mtn' in name_lower %}
+            {% set_var "#ffcc00" as color %}
+          {% elif 'telecel' in name_lower %}
+            {% set_var "#e60000" as color %}
+          {% elif 'tigo' in name_lower or 'airteltigo' in name_lower %}
+            {% set_var "#0033a0" as color %}
+          {% else %}
+            {% set_var "#6c757d" as color %}
+          {% endif %}
+        {% endwith %}
 
-            <div class="d-flex align-items-center justify-content-between mt-3">
-              <div>
-                <div class="h5 mb-0 fw-bold">₵{{ bundle.price }}</div>
-                <div class="small text-muted">Inclusive</div>
-              </div>
-
-              <button type="button"
-                      class="btn btn-primary btn-sm btn-buy"
-                      data-bundle-id="{{ bundle.id }}">
+        <div class="col-12 col-md-6 col-lg-4">
+          <div class="card h-100 shadow-sm border-0"
+               style="border-top-width:6px;border-top-style:solid;border-top-color:{{ color|default:'#6c757d' }};">
+            <div class="card-body d-flex flex-column justify-content-between">
+              <div class="fw-bold text-dark">{{ bundle.name }}</div>
+              <div class="h5 mb-0 fw-bold text-dark">₵{{ bundle.price }}</div>
+              <button type="submit"
+                      class="btn btn-dark btn-sm buy-btn"
+                      name="bundle_id"
+                      value="{{ bundle.id }}">
                 Buy
               </button>
             </div>
           </div>
         </div>
-      </div>
       {% empty %}
-      <div class="col-12">
-        <div class="alert alert-info text-center">
-          No bundles available yet. Please check back soon.
+        <div class="col-12">
+          <div class="alert alert-info text-center">
+            No bundles available yet. Please check back soon.
+          </div>
         </div>
-      </div>
       {% endfor %}
     </div>
   </form>
@@ -56,14 +57,15 @@
 
 <script>
 document.addEventListener("DOMContentLoaded", function() {
-  const buyButtons = document.querySelectorAll(".btn-buy");
+  const buyButtons = document.querySelectorAll(".buy-btn");
   const form = document.getElementById("buyForm");
   const bundleInput = document.getElementById("bundle_id");
   const recipientInput = document.getElementById("recipient");
 
   buyButtons.forEach(btn => {
-    btn.addEventListener("click", function() {
-      const bundleId = this.dataset.bundleId;
+    btn.addEventListener("click", function(e) {
+      e.preventDefault();
+      const bundleId = this.value;
       if (!recipientInput.value || recipientInput.value.trim().length < 6) {
         alert("Please enter a valid recipient number before buying.");
         recipientInput.focus();
