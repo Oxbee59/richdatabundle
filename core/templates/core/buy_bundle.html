@@ -1,43 +1,78 @@
-{% extends 'core/base.html' %}
+{% extends "core/base.html" %}
 {% load static %}
-{% block content %}
-<div class="pb-3">
-  <h2 class="mb-3 text-center">Buy Data Bundle</h2>
 
-  <form method="POST" id="buyForm">
+{% block content %}
+<div class="container my-4">
+  <h2 class="text-center mb-4">Buy Data Bundle</h2>
+
+  <form method="POST" id="buyForm" novalidate>
     {% csrf_token %}
     <div class="mb-3">
       <label for="recipient" class="form-label fw-semibold">Recipient Number</label>
       <input id="recipient" name="recipient" type="text" class="form-control" placeholder="054XXXXXXXX" required>
     </div>
 
-    <div class="bundle-list">
-        {% for bundle in bundles %}
-            {% if "MTN" in bundle.network %}
-                {% with color="yellow" logo="/static/core/images/mtn.png" %}
-            {% elif "AIRTEL" in bundle.network %}
-                {% with color="red" logo="/static/core/images/airtel.png" %}
-            {% elif "GLO" in bundle.network %}
-                {% with color="green" logo="/static/core/images/glo.png" %}
-            {% elif "9MOBILE" in bundle.network %}
-                {% with color="lime" logo="/static/core/images/9mobile.png" %}
-            {% elif "TELECEL" in bundle.network %}
-                {% with color="blue" logo="/static/core/images/telecel.png" %}
-            {% else %}
-                {% with color="gray" logo="/static/core/images/default.png" %}
-            {% endif %}
-            
-            <div class="bundle-card" style="border: 2px solid {{ color }};">
-                <img src="{{ logo }}" alt="{{ bundle.network }} Logo" style="height:50px;">
-                <p><strong>{{ bundle.network }}</strong></p>
-                <p>{{ bundle.plan_name }}</p>
-                <p>₦{{ bundle.price }}</p>
-                <a href="{% url 'process_payment' bundle.id %}" class="btn btn-primary">Buy Now</a>
+    <!-- Hidden field to hold selected bundle ID -->
+    <input type="hidden" name="bundle_id" id="bundle_id" value="">
+
+    <div class="row g-3">
+      {% for bundle in bundles %}
+      <div class="col-12 col-sm-6 col-md-4">
+        <div class="card h-100 shadow-sm border-0"
+             style="border-top: 6px solid {{ bundle.color|default:'#6c757d' }};">
+          <div class="card-body d-flex flex-column justify-content-between">
+            <div>
+              <div class="fw-bold">{{ bundle.name }}</div>
+              {% if bundle.description %}
+              <div class="small text-muted mb-2">{{ bundle.description }}</div>
+              {% endif %}
             </div>
 
-            {% endwith %}
-        {% endfor %}
+            <div class="d-flex align-items-center justify-content-between mt-3">
+              <div>
+                <div class="h5 mb-0 fw-bold">₵{{ bundle.price }}</div>
+                <div class="small text-muted">Inclusive</div>
+              </div>
+
+              <button type="button"
+                      class="btn btn-primary btn-sm btn-buy"
+                      data-bundle-id="{{ bundle.id }}">
+                Buy
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {% empty %}
+      <div class="col-12">
+        <div class="alert alert-info text-center">
+          No bundles available yet. Please check back soon.
+        </div>
+      </div>
+      {% endfor %}
     </div>
+  </form>
 </div>
 
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const buyButtons = document.querySelectorAll(".btn-buy");
+  const form = document.getElementById("buyForm");
+  const bundleInput = document.getElementById("bundle_id");
+  const recipientInput = document.getElementById("recipient");
+
+  buyButtons.forEach(btn => {
+    btn.addEventListener("click", function() {
+      const bundleId = this.dataset.bundleId;
+      if (!recipientInput.value || recipientInput.value.trim().length < 6) {
+        alert("Please enter a valid recipient number before buying.");
+        recipientInput.focus();
+        return;
+      }
+      bundleInput.value = bundleId;
+      form.submit();
+    });
+  });
+});
+</script>
 {% endblock %}
