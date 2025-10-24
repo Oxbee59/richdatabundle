@@ -1,80 +1,47 @@
-{% extends "core/base.html" %}
+{% extends 'core/base.html' %}
 {% load static %}
-
 {% block content %}
-<div class="container my-4">
-  <h2 class="text-center mb-4">Buy Data Bundle</h2>
+<div class="pb-3">
+  <h2 class="mb-3">Buy Data Bundle</h2>
 
-  <form method="POST" id="buyForm" novalidate>
+  <form method="POST" id="buyForm">
     {% csrf_token %}
     <div class="mb-3">
-      <label for="recipient" class="form-label fw-semibold">Recipient Number</label>
+      <label for="recipient" class="form-label">Recipient Number</label>
       <input id="recipient" name="recipient" type="text" class="form-control" placeholder="054XXXXXXXX" required>
     </div>
 
-    <!-- Hidden field to hold selected bundle ID -->
-    <input type="hidden" name="bundle_id" id="bundle_id" value="">
-
     <div class="row g-3">
       {% for bundle in bundles %}
-        {% with name_lower=bundle.name|lower %}
-          {% if 'mtn' in name_lower %}
-            {% set_var "#ffcc00" as color %}
-          {% elif 'telecel' in name_lower %}
-            {% set_var "#e60000" as color %}
-          {% elif 'tigo' in name_lower or 'airteltigo' in name_lower %}
-            {% set_var "#0033a0" as color %}
-          {% else %}
-            {% set_var "#6c757d" as color %}
-          {% endif %}
-        {% endwith %}
+      {% with name_lower=bundle.name|lower %}
+      <div class="col-12 col-md-6 col-lg-4">
+        <div class="card h-100 bundle-rect" data-id="{{ bundle.id }}">
+          <div class="card-body d-flex flex-column">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <div class="fw-bold">{{ bundle.name }}</div>
+              <div class="small text-muted">
+                {% if 'mtn' in name_lower %}MTN{% elif 'telecel' in name_lower %}Telecel{% elif 'tigo' in name_lower or 'airteltigo' in name_lower %}AirtelTigo{% else %}Other{% endif %}
+              </div>
+            </div>
 
-        <div class="col-12 col-md-6 col-lg-4">
-          <div class="card h-100 shadow-sm border-0"
-               style="border-top-width:6px;border-top-style:solid;border-top-color:{{ color|default:'#6c757d' }};">
-            <div class="card-body d-flex flex-column justify-content-between">
-              <div class="fw-bold text-dark">{{ bundle.name }}</div>
-              <div class="h5 mb-0 fw-bold text-dark">₵{{ bundle.price }}</div>
-              <button type="submit"
-                      class="btn btn-dark btn-sm buy-btn"
-                      name="bundle_id"
-                      value="{{ bundle.id }}">
-                Buy
-              </button>
+            <div class="flex-fill d-flex align-items-end justify-content-between">
+              <div>
+                <div class="h5 mb-0">₵{{ bundle.price }}</div>
+                <div class="text-muted small">Inclusive</div>
+              </div>
+              <button type="submit" class="btn btn-dark btn-sm buy-btn" name="bundle_id" value="{{ bundle.id }}">Buy</button>
             </div>
           </div>
         </div>
+      </div>
+      {% endwith %}
       {% empty %}
-        <div class="col-12">
-          <div class="alert alert-info text-center">
-            No bundles available yet. Please check back soon.
-          </div>
-        </div>
+      <div class="col-12">
+        <div class="alert alert-info">No bundles available yet. Please check back soon.</div>
+      </div>
       {% endfor %}
     </div>
   </form>
 </div>
 
-<script>
-document.addEventListener("DOMContentLoaded", function() {
-  const buyButtons = document.querySelectorAll(".buy-btn");
-  const form = document.getElementById("buyForm");
-  const bundleInput = document.getElementById("bundle_id");
-  const recipientInput = document.getElementById("recipient");
-
-  buyButtons.forEach(btn => {
-    btn.addEventListener("click", function(e) {
-      e.preventDefault();
-      const bundleId = this.value;
-      if (!recipientInput.value || recipientInput.value.trim().length < 6) {
-        alert("Please enter a valid recipient number before buying.");
-        recipientInput.focus();
-        return;
-      }
-      bundleInput.value = bundleId;
-      form.submit();
-    });
-  });
-});
-</script>
 {% endblock %}

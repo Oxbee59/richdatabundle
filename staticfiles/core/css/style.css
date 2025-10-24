@@ -61,14 +61,6 @@ footer { border-top:1px solid rgba(0,0,0,0.04); }
 }
 /* Append to static/core/css/style.css */
 
-/* Topbar */
-.topbar {
-  background: #ffffff;
-  position: sticky;
-  top: 0;
-  z-index: 1050;
-}
-
 /* Sidebar */
 .app-sidebar {
   position: fixed;
