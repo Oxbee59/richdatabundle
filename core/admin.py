@@ -1,32 +1,37 @@
 from django.contrib import admin
-from django.contrib.auth import views as auth_views
-from django.shortcuts import redirect
+from django.contrib.auth import authenticate, login
+from django.shortcuts import redirect, render
 from .models import Bundle, Purchase
 
 
-# Restrict admin login to staff/superusers only
-class CustomAdminLoginView(auth_views.LoginView):
-    def form_valid(self, form):
-        user = form.get_user()
-        if not user.is_staff:  # Prevent normal user login
-            return redirect('/')  # Redirect to home
-        return super().form_valid(form)
+# Secure admin login: only staff/superusers allowed
+def custom_admin_login(request):
+    if request.method == "POST":
+        username = request.POST.get("username")
+        password = request.POST.get("password")
+        user = authenticate(request, username=username, password=password)
 
+        if user and user.is_staff:
+            login(request, user)
+            return redirect("/admin/")
+        else:
+            return render(request, "admin/login.html", {
+                "error": "Invalid credentials or unauthorized user.",
+            })
 
-# Override the default Django admin login view
-admin.site.login = CustomAdminLoginView.as_view()
+    return render(request, "admin/login.html")
 
 
 # Bundle admin configuration
 @admin.register(Bundle)
 class BundleAdmin(admin.ModelAdmin):
-    list_display = ('name', 'code', 'price')
-    search_fields = ('name', 'code')
+    list_display = ("name", "code", "price")
+    search_fields = ("name", "code")
 
 
 # Purchase admin configuration
 @admin.register(Purchase)
 class PurchaseAdmin(admin.ModelAdmin):
-    list_display = ('user', 'bundle', 'recipient', 'amount', 'paid', 'api_transaction_id', 'created_at')
-    list_filter = ('paid',)
-    search_fields = ('recipient', 'api_transaction_id')
+    list_display = ("user", "bundle", "recipient", "amount", "paid", "api_transaction_id", "created_at")
+    list_filter = ("paid",)
+    search_fields = ("recipient", "api_transaction_id")
