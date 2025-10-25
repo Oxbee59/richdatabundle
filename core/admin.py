@@ -9,7 +9,7 @@ def custom_admin_login(request):
     if request.method == "POST":
         username = request.POST.get("username")
         password = request.POST.get("password")
-        user = authenticate(request, username=admin, password=Admin@12345)
+        user = authenticate(request, username=username, password=password)
 
         if user and user.is_staff:
             login(request, user)
