@@ -165,3 +165,14 @@ def profile(request):
     return render(request, "core/profile.html", {"user": request.user})
 def payment_success(request):
     return render(request, 'core/payment_success.html')
+    # TEMPORARY: ensure admin account exists on deployment
+from django.contrib.auth.models import User
+
+try:
+    if not User.objects.filter(username="admin").exists():
+        User.objects.create_superuser("admin", "admin@example.com", "yourpassword123")
+        print("✅ Superuser 'admin' created successfully.")
+    else:
+        print("ℹ️ Superuser 'admin' already exists.")
+except Exception as e:
+    print("⚠️ Error creating admin user:", e)
