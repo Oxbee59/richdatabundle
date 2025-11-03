@@ -2,7 +2,14 @@
 {% block content %}
 <div class="text-center py-5">
   <h1 class="fw-bold">Welcome, {{ user.username }}</h1>
-  <p class="lead text-muted">{{ trust_message }}</p>
-  <a href="{% url 'buy_bundle' %}" class="btn btn-primary btn-lg mt-3">Buy Bundles</a>
+  <a href="{% url 'buy_bundle' %}" class="btn btn-warning btn-lg mt-3">Buy Bundles</a>
+
+  <!-- Customer Trust Message -->
+  <div class="mt-4 p-3 bg-light border rounded">
+    <p class="mb-0">
+      ❤️ Thousands of customers trust <strong>RichData Palace</strong> for fast, reliable, and affordable data bundle purchases.
+      Join them and stay connected today!
+    </p>
+  </div>
 </div>
 {% endblock %}

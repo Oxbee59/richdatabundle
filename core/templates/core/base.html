@@ -1,43 +1,79 @@
-{# core/templates/core/base.html #}
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>RichData Bundle</title>
+  <title>RichData Palace</title>
   <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   {% load static %}
   <link rel="stylesheet" href="{% static 'core/css/style.css' %}">
+  <style>
+    .mobile-sidebar {
+      position: fixed;
+      top: 0;
+      left: -260px;
+      width: 250px;
+      height: 100%;
+      background: #111;
+      color: #fff;
+      transition: left 0.3s ease;
+      z-index: 1050;
+      padding-top: 60px;
+    }
+    .mobile-sidebar.open {
+      left: 0;
+    }
+    .mobile-sidebar a {
+      color: #ccc;
+      text-decoration: none;
+      display: block;
+      padding: 12px 20px;
+      border-bottom: 1px solid #222;
+    }
+    .mobile-sidebar a:hover {
+      background: #222;
+      color: #fff;
+    }
+    footer {
+      background: #f8f9fa;
+      color: #666;
+    }
+  </style>
 </head>
 <body class="d-flex flex-column min-vh-100">
 
-<header class="bg-violet text-white py-3">
+<header class="bg-dark text-white py-3">
   <div class="container d-flex align-items-center justify-content-between">
     <div class="d-flex align-items-center">
       <button id="menuToggle" class="btn btn-sm btn-outline-light me-2 d-lg-none">≡</button>
-      <a href="{% url 'dashboard' %}" class="text-decoration-none text-white fs-4 fw-bold">RichDataBundle</a>
+      <a href="{% url 'dashboard' %}" class="text-decoration-none text-white fs-4 fw-bold">RichData Palace</a>
     </div>
 
     <nav id="mainNav" class="d-none d-lg-flex align-items-center gap-3">
-      <a href="{% url 'buy_bundle' %}" class="btn btn-light btn-sm fw-bold">Buy Bundles</a>
+      <a href="{% url 'buy_bundle' %}" class="btn btn-warning btn-sm fw-bold text-dark">Buy Data</a>
       <a href="{% url 'profile' %}" class="text-white">Profile</a>
-      <a href="{% url 'my_purchases' %}" class="text-white">Purchases</a>
+      <a href="{% url 'my_purchases' %}" class="text-white">Order History</a>
       <a href="{% url 'logout' %}" class="text-white">Logout</a>
     </nav>
 
     <div class="d-none d-lg-block text-end text-white small">
-      Welcome, {{ user.username }}{% if user is not None %}{% endif %}
+      Welcome, {{ user.username }}
     </div>
   </div>
 </header>
 
 <!-- Sidebar for mobile -->
 <div id="mobileSidebar" class="mobile-sidebar d-lg-none">
-  <div class="p-3">
-    <a href="{% url 'buy_bundle' %}" class="d-block py-2">Buy Bundles</a>
-    <a href="{% url 'profile' %}" class="d-block py-2">Profile</a>
-    <a href="{% url 'my_purchases' %}" class="d-block py-2">Purchases</a>
-    <a href="{% url 'logout' %}" class="d-block py-2">Logout</a>
+  <div class="px-3">
+    <div class="text-center mb-4">
+      <h5 class="fw-bold">RichData Palace</h5>
+      <p class="small text-muted mb-0">{{ user.username|default:"Guest" }}</p>
+    </div>
+    <a href="{% url 'dashboard' %}">🏠 Dashboard</a>
+    <a href="{% url 'buy_bundle' %}">📶 Buy Data</a>
+    <a href="{% url 'my_purchases' %}">🧾 Order History</a>
+    <a href="{% url 'profile' %}">👤 Profile</a>
+    <a href="{% url 'logout' %}">🚪 Logout</a>
   </div>
 </div>
 
@@ -53,9 +89,9 @@
   </div>
 </main>
 
-<footer class="py-3 mt-auto bg-light">
-  <div class="container text-center small text-muted">
-    © RichData Bundle — All rights reserved
+<footer class="py-3 mt-auto">
+  <div class="container text-center small">
+    © 2025 RichData Palace — All rights reserved | Developed by <strong>Hummingbird Digital Solutions</strong>
   </div>
 </footer>
 
@@ -67,6 +103,19 @@
     menuToggle.addEventListener('click', () => {
       mobileSidebar.classList.toggle('open');
     });
+  }
+
+  // Password toggle
+  function togglePassword(id, iconId) {
+    const field = document.getElementById(id);
+    const icon = document.getElementById(iconId);
+    if (field.type === "password") {
+      field.type = "text";
+      icon.textContent = "🙈";
+    } else {
+      field.type = "password";
+      icon.textContent = "👁️";
+    }
   }
 </script>
 </body>

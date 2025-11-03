@@ -1,6 +1,6 @@
 {% extends 'core/base.html' %}
 {% block content %}
-<div class="auth-container mx-auto">
+<div class="auth-container mx-auto" style="max-width:400px;">
   <h3 class="text-center mb-3">Login</h3>
   <form method="post">
     {% csrf_token %}
@@ -8,9 +8,14 @@
       <label class="form-label">Username</label>
       <input name="username" class="form-control" required>
     </div>
-    <div class="mb-3">
+    <div class="mb-3 position-relative">
       <label class="form-label">Password</label>
-      <input name="password" type="password" class="form-control" required>
+      <div class="input-group">
+        <input name="password" id="password" type="password" class="form-control" required>
+        <button type="button" class="btn btn-outline-secondary" id="toggleEye" onclick="togglePassword('password','toggleEyeIcon')">
+          <span id="toggleEyeIcon">👁️</span>
+        </button>
+      </div>
     </div>
     <button class="btn btn-primary w-100">Login</button>
   </form>
