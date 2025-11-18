@@ -417,3 +417,27 @@ def payment_success(request):
     return render(request, "payment_success.html")
 def profile(request):
     return render(request, "core/profile.html")
+@login_required
+def api_docs(request):
+    return render(request, "core/api_docs.html")
+@login_required
+def agent_dashboard(request):
+    """
+    Shows agent-specific metrics: total sales, total volume, recent transactions
+    """
+    user = request.user
+    profile = getattr(user, 'profile', None)
+    if not profile or not profile.is_agent or not profile.is_agent_active:
+        # non-agent users redirected
+        return redirect('dashboard')
+
+    total_sales = Purchase.objects.filter(user=user, paid=True).count()
+    total_volume = Purchase.objects.filter(user=user, paid=True).aggregate(total=Sum('amount'))['total'] or 0
+    recent_sales = Purchase.objects.filter(user=user).order_by('-created_at')[:8]
+
+    context = {
+        'total_sales': total_sales,
+        'total_volume': total_volume,
+        'recent_sales': recent_sales,
+    }
+    return render(request, 'core/agent_dashboard.html', context)

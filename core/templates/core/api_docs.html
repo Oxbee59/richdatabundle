@@ -1,0 +1,50 @@
+{% extends "core/base.html" %}
+{% block content %}
+<h1>RichDataBundles API Documentation</h1>
+
+<h2>1. List Bundles</h2>
+<p><code>GET /api/bundles/</code></p>
+<p>Returns all available bundles:</p>
+<pre>
+Headers:
+  X-API-KEY: your-key
+Response:
+{
+  "status": "ok",
+  "data": [
+    {"id": 1, "name": "MTN 1GB", "code": "mtn_1gb", "price": "100", ...}
+  ]
+}
+</pre>
+
+<h2>2. Sell Bundle</h2>
+<p><code>POST /api/sell/</code></p>
+<pre>
+Headers:
+  X-API-KEY: your-key
+Body:
+{
+  "bundle_id": 1,
+  "recipient": "024xxxxxxx",
+  "agent_username": "agent01"
+}
+Response:
+{
+  "status": "ok",
+  "authorization_url": "https://paystack.com/..."
+}
+</pre>
+
+<h2>3. Agent Transactions</h2>
+<p><code>GET /api/agent/{user_id}/tx/</code></p>
+<pre>
+Headers:
+  X-API-KEY: your-key
+Response:
+{
+  "status": "ok",
+  "user": "agent01",
+  "data": [ ...transactions... ]
+}
+</pre>
+{% endblock %}

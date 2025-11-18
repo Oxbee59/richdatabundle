@@ -1,0 +1,32 @@
+{% extends "core/base.html" %}
+{% block content %}
+<h1>Agent Dashboard</h1>
+
+<div class="cards-container">
+    <div class="card">
+        <h3>Total Sales</h3>
+        <p>{{ total_sales }}</p>
+    </div>
+    <div class="card">
+        <h3>Total Volume</h3>
+        <p>₦{{ total_volume }}</p>
+    </div>
+</div>
+
+<h2>Recent Sales</h2>
+<table>
+    <tr>
+        <th>ID</th><th>Bundle</th><th>Recipient</th><th>Amount</th><th>Paid</th><th>Date</th>
+    </tr>
+    {% for sale in recent_sales %}
+    <tr>
+        <td>{{ sale.id }}</td>
+        <td>{{ sale.bundle.name }}</td>
+        <td>{{ sale.recipient }}</td>
+        <td>{{ sale.amount }}</td>
+        <td>{{ sale.paid }}</td>
+        <td>{{ sale.created_at }}</td>
+    </tr>
+    {% endfor %}
+</table>
+{% endblock %}

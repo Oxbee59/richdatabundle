@@ -1,56 +1,71 @@
 {% extends 'core/base.html' %}
+{% load static %}
 {% block content %}
-<div class="py-3">
-  {% if is_agent %}
-    <h3 class="mb-3">Agent Dashboard — {{ user.username }}</h3>
+<div class="d-flex">
+  <!-- Sidebar -->
+  <div class="mobile-sidebar" id="sidebar">
+    <span id="close-sidebar">&times;</span>
+    <ul>
+      <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
+      <li><a href="{% url 'buy_bundle' %}">Buy Bundles</a></li>
+      {% if user.profile.is_agent and user.profile.is_agent_active %}
+        <li><a href="{% url 'agent_dashboard' %}">Agent Dashboard</a></li>
+      {% endif %}
+      <li><a href="{% url 'api_docs' %}">API Docs</a></li>
+      <li><a href="{% url 'profile' %}">Profile</a></li>
+      <li><a href="{% url 'logout' %}">Logout</a></li>
+    </ul>
+  </div>
 
-    <div class="row g-3 mb-4">
-      <div class="col-12 col-md-4">
-        <div class="card shadow-sm p-3">
-          <div class="d-flex justify-content-between align-items-center">
-            <div>
-              <div class="small text-muted">Total Sales</div>
-              <div class="h4 fw-bold">{{ total_sales }}</div>
-            </div>
-            <div class="text-end">
-              <div class="small text-muted">Volume</div>
-              <div class="fw-bold">₵{{ total_volume }}</div>
-            </div>
-          </div>
-        </div>
+  <!-- Main Content -->
+  <div class="container flex-grow-1 py-3">
+    <!-- Welcome / Overview -->
+    <div class="d-flex justify-content-between align-items-center mb-4">
+      <h2 class="fw-bold">Welcome, {{ user.username }}</h2>
+      <button class="btn btn-primary d-md-none" onclick="document.getElementById('sidebar').classList.toggle('open')">
+        &#9776; Menu
+      </button>
+    </div>
+
+    {% if is_agent %}
+    <!-- Agent Dashboard Metrics -->
+    <div class="cards-container mb-4">
+      <div class="card">
+        <h4>Total Sales</h4>
+        <p class="h3 fw-bold">{{ total_sales }}</p>
       </div>
-
-      <div class="col-12 col-md-8">
-        <div class="card shadow-sm p-3">
-          <div class="d-flex justify-content-between align-items-center mb-2">
-            <div class="fw-bold">Quick Sell</div>
-            <div class="small text-muted">Sell a bundle to a customer</div>
+      <div class="card">
+        <h4>Total Volume</h4>
+        <p class="h3 fw-bold">₵{{ total_volume }}</p>
+      </div>
+      <div class="card">
+        <h4>Quick Sell</h4>
+        <p class="small text-muted">Sell a bundle to a customer</p>
+        <form method="POST" action="{% url 'buy_bundle' %}" id="agentSellForm" class="row g-2">
+          {% csrf_token %}
+          <div class="col-md-5">
+            <select name="bundle_id" class="form-select" required>
+              <option value="">Select bundle</option>
+              {% for b in bundles %}
+                <option value="{{ b.id }}">{{ b.name }} — ₵{{ b.price }}</option>
+              {% endfor %}
+            </select>
           </div>
-
-          <form method="POST" action="{% url 'buy_bundle' %}" id="agentSellForm" class="row g-2">
-            {% csrf_token %}
-            <div class="col-md-4">
-              <select name="bundle_id" class="form-select" required>
-                <option value="">Select bundle</option>
-                {% for b in bundles %}
-                  <option value="{{ b.id }}">{{ b.name }} — ₵{{ b.price }}</option>
-                {% endfor %}
-              </select>
-            </div>
-            <div class="col-md-4">
-              <input name="recipient" class="form-control" placeholder="054XXXXXXXX" required>
-            </div>
-            <div class="col-md-2">
-              <button class="btn btn-success w-100">Charge & Sell</button>
-            </div>
-          </form>
-        </div>
+          <div class="col-md-5">
+            <input name="recipient" class="form-control" placeholder="054XXXXXXXX" required>
+          </div>
+          <div class="col-md-2">
+            <button class="btn btn-success w-100">Charge & Sell</button>
+          </div>
+        </form>
       </div>
     </div>
 
-    <h5 class="mb-2">Recent Sales</h5>
-    <div class="list-group">
-      {% for p in recent_sales %}
+    <!-- Recent Sales Table -->
+    <div class="card p-3 mb-4">
+      <h5 class="mb-3">Recent Sales</h5>
+      <div class="list-group">
+        {% for p in recent_sales %}
         <div class="list-group-item d-flex justify-content-between align-items-center">
           <div>
             <div class="fw-bold">{{ p.bundle.name }} — ₵{{ p.amount }}</div>
@@ -60,12 +75,14 @@
             {% if p.paid %}Paid{% else %}Pending{% endif %}
           </div>
         </div>
-      {% empty %}
-        <div class="list-group-item text-center text-muted">No recent sales</div>
-      {% endfor %}
+        {% empty %}
+          <div class="list-group-item text-center text-muted">No recent sales</div>
+        {% endfor %}
+      </div>
     </div>
 
-  {% else %}
+    {% else %}
+    <!-- Customer / Non-Agent View -->
     <div class="text-center py-5">
       <h1 class="fw-bold">Welcome, {{ user.username }}</h1>
       <p class="lead">Buy bundles or register as an agent to sell bundles through the app.</p>
@@ -74,15 +91,23 @@
       {% if user.profile.is_agent and not user.profile.is_agent_active %}
         <div class="mt-4">
           <p class="text-center small text-muted">You requested agent registration but haven't completed payment.</p>
-
           {% if pending_registration %}
             <a href="{% url 'agent_register' reg_id=pending_registration.id %}" class="btn btn-primary mt-2">Complete Agent Registration</a>
           {% endif %}
-
         </div>
       {% endif %}
-
     </div>
-  {% endif %}
+    {% endif %}
+  </div>
 </div>
+
+<!-- Sidebar toggle script -->
+<script>
+const sidebar = document.getElementById('sidebar');
+const closeBtn = document.getElementById('close-sidebar');
+
+closeBtn.addEventListener('click', ()=>{
+  sidebar.classList.remove('open');
+});
+</script>
 {% endblock %}

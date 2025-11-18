@@ -1,0 +1,9 @@
+<h2>Agent Registration</h2>
+<form method="POST">
+  {% csrf_token %}
+  <label>Company Name:</label>
+  <input type="text" name="company_name" required><br>
+  <label>Phone:</label>
+  <input type="text" name="phone" required><br>
+  <button type="submit">Register</button>
+</form>

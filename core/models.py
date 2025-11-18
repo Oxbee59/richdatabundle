@@ -72,3 +72,28 @@ class AgentRegistration(models.Model):
     def __str__(self):
         status = "Paid" if self.paid else "Pending"
         return f"AgentRegistration({self.user.username}, {status})"
+class ApiKey(models.Model):
+    """
+    Optional model to allow multiple API keys per user, with optional expiration.
+    """
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    key = models.CharField(max_length=64, unique=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    active = models.BooleanField(default=True)
+    description = models.CharField(max_length=255, blank=True)
+
+    def __str__(self):
+        return f"ApiKey({self.user.username}, {self.key[:8]}..., active={self.active})"
+class ApiAccessLog(models.Model):
+    """
+    Tracks API requests per key for auditing and usage stats.
+    """
+    api_key = models.ForeignKey(ApiKey, on_delete=models.SET_NULL, null=True)
+    endpoint = models.CharField(max_length=128)
+    method = models.CharField(max_length=10)
+    timestamp = models.DateTimeField(auto_now_add=True)
+    ip_address = models.GenericIPAddressField(null=True, blank=True)
+    status_code = models.IntegerField(null=True)
+
+    def __str__(self):
+        return f"ApiAccessLog({self.api_key}, {self.endpoint}, {self.status_code})"
