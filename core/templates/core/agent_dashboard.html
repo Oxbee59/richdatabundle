@@ -1,32 +1,114 @@
 {% extends "core/base.html" %}
 {% block content %}
-<h1>Agent Dashboard</h1>
 
-<div class="cards-container">
-    <div class="card">
-        <h3>Total Sales</h3>
-        <p>{{ total_sales }}</p>
-    </div>
-    <div class="card">
-        <h3>Total Volume</h3>
-        <p>₦{{ total_volume }}</p>
-    </div>
-</div>
+<style>
+  .ag-card {
+      background: #fff;
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 3px 10px rgba(0,0,0,.1);
+      transition: .2s ease;
+  }
+  .ag-card:hover { transform: translateY(-4px); }
+  .ag-title { font-size: 18px; color: #2d035a; font-weight: bold; }
+  .ag-value { font-size: 28px; font-weight: bold; }
+</style>
 
-<h2>Recent Sales</h2>
-<table>
-    <tr>
-        <th>ID</th><th>Bundle</th><th>Recipient</th><th>Amount</th><th>Paid</th><th>Date</th>
-    </tr>
-    {% for sale in recent_sales %}
-    <tr>
-        <td>{{ sale.id }}</td>
+<div class="container py-4">
+
+  <h3 class="fw-bold mb-4 text-dark">Agent Dashboard</h3>
+
+  <div class="row mb-4">
+
+    <div class="col-md-3 mb-3">
+      <div class="ag-card">
+        <div class="ag-title">Wallet Balance</div>
+        <div class="ag-value">₵{{ wallet }}</div>
+      </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+      <div class="ag-card">
+        <div class="ag-title">Commission Earned</div>
+        <div class="ag-value">₵{{ commission }}</div>
+      </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+      <div class="ag-card">
+        <div class="ag-title">Total Sales</div>
+        <div class="ag-value">{{ total_sales }}</div>
+      </div>
+    </div>
+
+    <div class="col-md-3 mb-3">
+      <div class="ag-card">
+        <div class="ag-title">Sales Volume</div>
+        <div class="ag-value">₵{{ total_volume }}</div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="card p-3 mb-4 shadow-sm">
+    <h5 class="fw-bold">Quick Sell</h5>
+
+    <form method="POST" class="row mt-3 g-2">
+      {% csrf_token %}
+
+      <div class="col-md-4">
+        <select name="bundle_id" class="form-select" required>
+          <option value="">Select Bundle</option>
+          {% for b in bundles %}
+            <option value="{{ b.id }}">{{ b.name }} — ₵{{ b.price }}</option>
+          {% endfor %}
+        </select>
+      </div>
+
+      <div class="col-md-4">
+        <input class="form-control" name="recipient" placeholder="054 XXXXXXX" required>
+      </div>
+
+      <div class="col-md-4">
+        <button class="btn btn-dark w-100">Sell Now</button>
+      </div>
+    </form>
+
+  </div>
+
+  <div class="card p-3 shadow-sm">
+    <h5 class="fw-bold">Recent Sales</h5>
+
+    <table class="table mt-3">
+      <thead>
+        <tr>
+          <th>Bundle</th>
+          <th>Recipient</th>
+          <th>Amount</th>
+          <th>Status</th>
+          <th>Date</th>
+        </tr>
+      </thead>
+
+      {% for sale in recent_sales %}
+      <tr>
         <td>{{ sale.bundle.name }}</td>
         <td>{{ sale.recipient }}</td>
-        <td>{{ sale.amount }}</td>
-        <td>{{ sale.paid }}</td>
-        <td>{{ sale.created_at }}</td>
-    </tr>
-    {% endfor %}
-</table>
+        <td>₵{{ sale.amount }}</td>
+        <td>
+          {% if sale.paid %}
+            <span class="badge bg-success">Paid</span>
+          {% else %}
+            <span class="badge bg-warning">Pending</span>
+          {% endif %}
+        </td>
+        <td>{{ sale.created_at|date:"Y-m-d H:i" }}</td>
+      </tr>
+      {% empty %}
+      <tr><td colspan="5" class="text-center text-muted py-3">No sales yet.</td></tr>
+      {% endfor %}
+    </table>
+  </div>
+
+</div>
 {% endblock %}

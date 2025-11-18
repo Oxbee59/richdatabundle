@@ -1,113 +1,143 @@
 {% extends 'core/base.html' %}
 {% load static %}
 {% block content %}
-<div class="d-flex">
-  <!-- Sidebar -->
-  <div class="mobile-sidebar" id="sidebar">
-    <span id="close-sidebar">&times;</span>
-    <ul>
-      <li><a href="{% url 'dashboard' %}">Dashboard</a></li>
-      <li><a href="{% url 'buy_bundle' %}">Buy Bundles</a></li>
-      {% if user.profile.is_agent and user.profile.is_agent_active %}
-        <li><a href="{% url 'agent_dashboard' %}">Agent Dashboard</a></li>
-      {% endif %}
-      <li><a href="{% url 'api_docs' %}">API Docs</a></li>
-      <li><a href="{% url 'profile' %}">Profile</a></li>
-      <li><a href="{% url 'logout' %}">Logout</a></li>
-    </ul>
+
+<style>
+  .rd-card {
+      background: #ffffff;
+      border-radius: 14px;
+      padding: 20px;
+      box-shadow: 0 3px 10px rgba(0,0,0,0.08);
+      transition: transform .2s ease;
+  }
+  .rd-card:hover {
+      transform: translateY(-4px);
+  }
+  .rd-title {
+      font-size: 20px;
+      font-weight: 700;
+      color: #2d035a;
+  }
+  .rd-value {
+      font-size: 28px;
+      font-weight: bold;
+      color: #000;
+  }
+</style>
+
+<div class="container py-4">
+
+  <div class="d-flex justify-content-between align-items-center mb-4">
+    <h3 class="fw-bold text-dark">Hello, {{ user.username }} 👋</h3>
   </div>
 
-  <!-- Main Content -->
-  <div class="container flex-grow-1 py-3">
-    <!-- Welcome / Overview -->
-    <div class="d-flex justify-content-between align-items-center mb-4">
-      <h2 class="fw-bold">Welcome, {{ user.username }}</h2>
-      <button class="btn btn-primary d-md-none" onclick="document.getElementById('sidebar').classList.toggle('open')">
-        &#9776; Menu
-      </button>
-    </div>
+  {% comment %}
+  ============================================
+  MAIN DASHBOARD LOGIC (Your Option A)
+  ============================================
+  {% endcomment %}
 
-    {% if is_agent %}
-    <!-- Agent Dashboard Metrics -->
-    <div class="cards-container mb-4">
-      <div class="card">
-        <h4>Total Sales</h4>
-        <p class="h3 fw-bold">{{ total_sales }}</p>
-      </div>
-      <div class="card">
-        <h4>Total Volume</h4>
-        <p class="h3 fw-bold">₵{{ total_volume }}</p>
-      </div>
-      <div class="card">
-        <h4>Quick Sell</h4>
-        <p class="small text-muted">Sell a bundle to a customer</p>
-        <form method="POST" action="{% url 'buy_bundle' %}" id="agentSellForm" class="row g-2">
-          {% csrf_token %}
-          <div class="col-md-5">
-            <select name="bundle_id" class="form-select" required>
-              <option value="">Select bundle</option>
-              {% for b in bundles %}
-                <option value="{{ b.id }}">{{ b.name }} — ₵{{ b.price }}</option>
-              {% endfor %}
-            </select>
+  {% if user.profile.is_agent %}
+      {% if user.profile.is_agent_active %}
+          <!-- ACTIVE AGENT: SHOW GO TO AGENT DASHBOARD -->
+          <a href="{% url 'agent_dashboard' %}" class="btn btn-primary mb-4">
+            🚀 Go to Agent Dashboard
+          </a>
+      {% else %}
+          <!-- INACTIVE AGENT: SHOW COMPLETE REGISTRATION -->
+          <div class="alert alert-warning">
+            Your agent registration is pending. Complete your payment to activate your agent account.
           </div>
-          <div class="col-md-5">
-            <input name="recipient" class="form-control" placeholder="054XXXXXXXX" required>
-          </div>
-          <div class="col-md-2">
-            <button class="btn btn-success w-100">Charge & Sell</button>
-          </div>
-        </form>
-      </div>
-    </div>
-
-    <!-- Recent Sales Table -->
-    <div class="card p-3 mb-4">
-      <h5 class="mb-3">Recent Sales</h5>
-      <div class="list-group">
-        {% for p in recent_sales %}
-        <div class="list-group-item d-flex justify-content-between align-items-center">
-          <div>
-            <div class="fw-bold">{{ p.bundle.name }} — ₵{{ p.amount }}</div>
-            <div class="small text-muted">To: {{ p.recipient }} · {{ p.created_at|date:"Y-m-d H:i" }}</div>
-          </div>
-          <div class="small text-muted">
-            {% if p.paid %}Paid{% else %}Pending{% endif %}
-          </div>
-        </div>
-        {% empty %}
-          <div class="list-group-item text-center text-muted">No recent sales</div>
-        {% endfor %}
-      </div>
-    </div>
-
-    {% else %}
-    <!-- Customer / Non-Agent View -->
-    <div class="text-center py-5">
-      <h1 class="fw-bold">Welcome, {{ user.username }}</h1>
-      <p class="lead">Buy bundles or register as an agent to sell bundles through the app.</p>
-      <a href="{% url 'buy_bundle' %}" class="btn btn-warning btn-lg mt-3">Buy Bundles</a>
-
-      {% if user.profile.is_agent and not user.profile.is_agent_active %}
-        <div class="mt-4">
-          <p class="text-center small text-muted">You requested agent registration but haven't completed payment.</p>
           {% if pending_registration %}
-            <a href="{% url 'agent_register' reg_id=pending_registration.id %}" class="btn btn-primary mt-2">Complete Agent Registration</a>
+            <a class="btn btn-success mb-4" href="{% url 'agent_register' reg_id=pending_registration.id %}">
+              💳 Complete Agent Registration
+            </a>
           {% endif %}
-        </div>
       {% endif %}
+  {% else %}
+      <!-- NOT AGENT: SHOW BECOME AGENT BUTTON -->
+      <a href="{% url 'agent_register_start' %}" class="btn btn-dark mb-4">
+          ⭐ Become an Agent
+      </a>
+  {% endif %}
+
+  {% comment %}
+  ============================================
+  DASHBOARD CARDS (for ALL USERS)
+  ============================================
+  {% endcomment %}
+
+  <div class="row mb-4">
+
+    <div class="col-md-4 mb-3">
+      <div class="rd-card">
+        <div class="rd-title">Wallet Balance</div>
+        <div class="rd-value">₵{{ user.profile.wallet_balance|default:"0.00" }}</div>
+      </div>
     </div>
-    {% endif %}
+
+    <div class="col-md-4 mb-3">
+      <div class="rd-card">
+        <div class="rd-title">Total Purchases</div>
+        <div class="rd-value">{{ purchase_count|default:"0" }}</div>
+      </div>
+    </div>
+
+    <div class="col-md-4 mb-3">
+      <div class="rd-card">
+        <div class="rd-title">Bundles Available</div>
+        <div class="rd-value">{{ bundles_count|default:"0" }}</div>
+      </div>
+    </div>
+
   </div>
+
+  {% if not user.profile.is_agent_active %}
+  <!-- SHOW A PREVIEW FOR NON-ACTIVE AGENTS -->
+  <div class="card p-4 mb-5 shadow-sm">
+    <h4 class="fw-bold">Preview: Agent Features</h4>
+    <p class="small text-muted">
+      Once activated, you will see:
+    </p>
+
+    <ul>
+      <li>Commission earnings</li>
+      <li>Agent wallet & withdrawals</li>
+      <li>Quick Sell interface</li>
+      <li>Sales history</li>
+      <li>Your API key (for integrations)</li>
+    </ul>
+
+    <p class="mt-3 small">
+      Activate your agent account to unlock these features.
+    </p>
+  </div>
+  {% endif %}
+
+  {% comment %}
+  ============================================
+  RECENT PURCHASES SECTION
+  ============================================
+  {% endcomment %}
+
+  <div class="card p-4 shadow-sm">
+    <h5 class="fw-bold">Recent Purchases</h5>
+
+    <div class="list-group mt-3">
+      {% for p in recent_purchases %}
+      <div class="list-group-item d-flex justify-content-between align-items-center">
+        <div>
+          <div class="fw-bold">{{ p.bundle.name }}</div>
+          <div class="small text-muted">₵{{ p.amount }} — {{ p.created_at|date:"Y-m-d H:i" }}</div>
+        </div>
+        <span class="badge bg-success">Paid</span>
+      </div>
+      {% empty %}
+        <div class="text-muted text-center py-3">No purchases yet.</div>
+      {% endfor %}
+    </div>
+  </div>
+
 </div>
 
-<!-- Sidebar toggle script -->
-<script>
-const sidebar = document.getElementById('sidebar');
-const closeBtn = document.getElementById('close-sidebar');
-
-closeBtn.addEventListener('click', ()=>{
-  sidebar.classList.remove('open');
-});
-</script>
 {% endblock %}
