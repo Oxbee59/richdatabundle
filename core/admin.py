@@ -2,6 +2,8 @@ from django.contrib import admin
 from django.contrib.auth import authenticate, login
 from django.shortcuts import redirect, render
 from .models import Bundle, Purchase
+from .models import AgentRegistration, Profile, Bundle, Purchase
+from .models import AgentRegistration, AgentSettings
 
 
 # Secure admin login: only staff/superusers allowed
@@ -35,3 +37,13 @@ class PurchaseAdmin(admin.ModelAdmin):
     list_display = ("user", "bundle", "recipient", "amount", "paid", "api_transaction_id", "created_at")
     list_filter = ("paid",)
     search_fields = ("recipient", "api_transaction_id")
+
+@admin.register(AgentRegistration)
+class AgentRegistrationAdmin(admin.ModelAdmin):
+    list_display = ('user', 'amount', 'paid', 'created_at', 'paid_at')
+    list_filter = ('paid', 'created_at')
+    search_fields = ('user__username', 'user__email')
+
+@admin.register(AgentSettings)
+class AgentSettingsAdmin(admin.ModelAdmin):
+    list_display = ("registration_fee",)

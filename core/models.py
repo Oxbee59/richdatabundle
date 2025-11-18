@@ -13,6 +13,8 @@ class Profile(models.Model):
     is_agent = models.BooleanField(default=False)           # user requested agent account
     is_agent_active = models.BooleanField(default=False)    # true after registration payment
     phone = models.CharField(max_length=30, blank=True)
+    wallet_balance = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+
 
     def __str__(self):
         return f'Profile({self.user.username})'
@@ -102,3 +104,19 @@ class ApiAccessLog(models.Model):
 
     def __str__(self):
         return f"ApiAccessLog({self.endpoint}, {self.status_code})"
+
+# core/models.py (add at the bottom)
+
+class AgentSettings(models.Model):
+    """
+    Stores global agent settings like registration fee.
+    Only one instance is needed.
+    """
+    registration_fee = models.DecimalField(max_digits=10, decimal_places=2, default=0.00)
+
+    def __str__(self):
+        return f"AgentSettings(Registration Fee: ₵{self.registration_fee})"
+
+    class Meta:
+        verbose_name = "Agent Setting"
+        verbose_name_plural = "Agent Settings"

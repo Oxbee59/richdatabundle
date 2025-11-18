@@ -8,29 +8,39 @@
       padding: 22px;
       box-shadow: 0 3px 10px rgba(0,0,0,.1);
       transition: .2s ease;
+      position: relative;
   }
   .ag-card:hover { transform: translateY(-4px); }
   .ag-title { font-size: 18px; color: #2d035a; font-weight: bold; }
-  .ag-value { font-size: 28px; font-weight: bold; }
+  .ag-value { font-size: 28px; font-weight: bold; margin-top: 8px; }
+  .load-wallet-btn {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      font-size: 12px;
+      padding: 4px 8px;
+  }
 </style>
 
 <div class="container py-4">
 
   <h3 class="fw-bold mb-4 text-dark">Agent Dashboard</h3>
 
+  <!-- Cards Row -->
   <div class="row mb-4">
 
     <div class="col-md-3 mb-3">
       <div class="ag-card">
         <div class="ag-title">Wallet Balance</div>
-        <div class="ag-value">₵{{ wallet }}</div>
+        <div class="ag-value">₵{{ wallet_balance }}</div>
+        <a href="{% url 'load_wallet' %}" class="btn btn-sm btn-outline-primary load-wallet-btn">Load Wallet</a>
       </div>
     </div>
 
     <div class="col-md-3 mb-3">
       <div class="ag-card">
         <div class="ag-title">Commission Earned</div>
-        <div class="ag-value">₵{{ commission }}</div>
+        <div class="ag-value">₵{{ commission_earned }}</div>
       </div>
     </div>
 
@@ -50,12 +60,12 @@
 
   </div>
 
+  <!-- Quick Sell Form -->
   <div class="card p-3 mb-4 shadow-sm">
     <h5 class="fw-bold">Quick Sell</h5>
 
     <form method="POST" class="row mt-3 g-2">
       {% csrf_token %}
-
       <div class="col-md-4">
         <select name="bundle_id" class="form-select" required>
           <option value="">Select Bundle</option>
@@ -64,22 +74,19 @@
           {% endfor %}
         </select>
       </div>
-
       <div class="col-md-4">
         <input class="form-control" name="recipient" placeholder="054 XXXXXXX" required>
       </div>
-
       <div class="col-md-4">
         <button class="btn btn-dark w-100">Sell Now</button>
       </div>
     </form>
-
   </div>
 
+  <!-- Recent Sales Table -->
   <div class="card p-3 shadow-sm">
     <h5 class="fw-bold">Recent Sales</h5>
-
-    <table class="table mt-3">
+    <table class="table mt-3 table-hover">
       <thead>
         <tr>
           <th>Bundle</th>
@@ -89,26 +96,41 @@
           <th>Date</th>
         </tr>
       </thead>
-
-      {% for sale in recent_sales %}
-      <tr>
-        <td>{{ sale.bundle.name }}</td>
-        <td>{{ sale.recipient }}</td>
-        <td>₵{{ sale.amount }}</td>
-        <td>
-          {% if sale.paid %}
-            <span class="badge bg-success">Paid</span>
-          {% else %}
-            <span class="badge bg-warning">Pending</span>
-          {% endif %}
-        </td>
-        <td>{{ sale.created_at|date:"Y-m-d H:i" }}</td>
-      </tr>
-      {% empty %}
-      <tr><td colspan="5" class="text-center text-muted py-3">No sales yet.</td></tr>
-      {% endfor %}
+      <tbody>
+        {% for sale in recent_sales %}
+        <tr>
+          <td>{{ sale.bundle.name }}</td>
+          <td>{{ sale.recipient }}</td>
+          <td>₵{{ sale.amount }}</td>
+          <td>
+            {% if sale.paid %}
+              <span class="badge bg-success">Paid</span>
+            {% else %}
+              <span class="badge bg-warning">Pending</span>
+            {% endif %}
+          </td>
+          <td>{{ sale.created_at|date:"Y-m-d H:i" }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+          <td colspan="5" class="text-center text-muted py-3">No sales yet.</td>
+        </tr>
+        {% endfor %}
+      </tbody>
     </table>
   </div>
 
+  <!-- Agent Features Preview (optional) -->
+  <div class="card p-3 mt-4 shadow-sm">
+    <h5 class="fw-bold">Agent Features Preview</h5>
+    <ul>
+      <li>Quick sell bundles directly to customers</li>
+      <li>Track commission and sales volume</li>
+      <li>View detailed recent transactions</li>
+      <li>Top-up wallet for immediate sales</li>
+    </ul>
+  </div>
+
 </div>
+
 {% endblock %}

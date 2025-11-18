@@ -16,6 +16,10 @@ from .models import Bundle, Purchase, AgentRegistration
 from django.contrib.auth.models import User
 from django.db.models import Sum
 from typing import Optional
+from .models import Bundle, ApiKey
+from .models import AgentRegistration, AgentSettings
+
+
 
 # -------------------------
 # Authentication & Signup
@@ -85,44 +89,76 @@ def agent_register_start(request):
     reg = AgentRegistration.objects.create(user=user, amount=amount, paid=False)
     return redirect("agent_register", reg_id=reg.id)
 
-
 @login_required
-def agent_register(request, reg_id):
+def agent_register(request, reg_id=None):
     """
-    Initialize Paystack checkout for agent registration record.
-    reg_id: AgentRegistration.id
+    Handle agent registration and Paystack checkout.
+    If reg_id is provided, continue payment for existing registration.
+    Otherwise, create a new registration using the admin-set fee.
     """
+    user = request.user
+
+    # Get the registration fee from admin-controlled AgentSettings
     try:
-        reg = AgentRegistration.objects.get(id=reg_id, user=request.user, paid=False)
-    except AgentRegistration.DoesNotExist:
-        messages.error(request, "Agent registration not found or already completed.")
+        settings_obj = AgentSettings.objects.first()
+        registration_fee = settings_obj.registration_fee if settings_obj else Decimal("0.00")
+    except Exception:
+        registration_fee = Decimal("0.00")
+
+    # If user POSTs registration form, create a new AgentRegistration record
+    if request.method == "POST":
+        # Prevent duplicate unpaid registrations
+        existing_reg = AgentRegistration.objects.filter(user=user, paid=False).first()
+        if existing_reg:
+            reg = existing_reg
+        else:
+            reg = AgentRegistration.objects.create(
+                user=user,
+                amount=registration_fee,
+                paid=False
+            )
+
+        return redirect("agent_register", reg_id=reg.id)
+
+    # If reg_id is provided, fetch existing unpaid registration
+    reg = None
+    if reg_id:
+        try:
+            reg = AgentRegistration.objects.get(id=reg_id, user=user, paid=False)
+        except AgentRegistration.DoesNotExist:
+            messages.error(request, "Agent registration not found or already completed.")
+            return redirect("dashboard")
+
+        # Initialize Paystack payment
+        headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+        data = {
+            "email": user.email or f"{user.username}@example.com",
+            "amount": int(reg.amount * 100),
+            "reference": f"agent-{reg.id}",
+            "callback_url": request.build_absolute_uri("/paystack-webhook/"),
+            "metadata": {"purpose": "agent_registration", "user_id": user.id},
+        }
+
+        try:
+            r = requests.post("https://api.paystack.co/transaction/initialize", headers=headers, json=data, timeout=15)
+            res = r.json()
+            if res.get("status"):
+                reg.paystack_reference = res["data"].get("reference")
+                reg.save()
+                return redirect(res["data"]["authorization_url"])
+            else:
+                messages.error(request, f"Payment initialization failed: {res.get('message')}")
+        except Exception as e:
+            messages.error(request, f"Error initializing payment: {e}")
+
         return redirect("dashboard")
 
-    # initialize paystack transaction
-    headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
-    data = {
-        "email": request.user.email or f"{request.user.username}@example.com",
-        "amount": int(reg.amount * 100),
-        # use a reference we can parse: "agent-<id>"
-        "reference": f"agent-{reg.id}",
-        "callback_url": request.build_absolute_uri("/paystack-webhook/"),
-        "metadata": {"purpose": "agent_registration", "user_id": request.user.id},
+    # No POST and no reg_id: show registration page with current fee
+    context = {
+        "registration_fee": registration_fee,
+        "registration": reg
     }
-
-    try:
-        r = requests.post("https://api.paystack.co/transaction/initialize", headers=headers, json=data, timeout=15)
-        res = r.json()
-        if res.get("status"):
-            # store reference returned by paystack (optional)
-            reg.paystack_reference = res["data"].get("reference")
-            reg.save()
-            return redirect(res["data"]["authorization_url"])
-        else:
-            messages.error(request, f"Payment initialization failed: {res.get('message')}")
-    except Exception as e:
-        messages.error(request, f"Error initializing payment: {e}")
-
-    return redirect("dashboard")
+    return render(request, "core/agent_register.html", context)
 
 
 @login_required
@@ -224,6 +260,73 @@ def dashboard(request):
     context["bundles_count"] = Bundle.objects.count()
 
     return render(request, "core/dashboard.html", context)
+
+# -------------------------
+# Agent Dashboard & Agent-Specific Views
+# -------------------------
+@login_required
+def agent_dashboard(request):
+    """
+    Shows agent-specific metrics: wallet balance, commission, total sales, total volume,
+    recent transactions, and bundles for quick sell.
+    """
+    user = request.user
+    profile = getattr(user, "profile", None)
+
+    if not profile or not profile.is_agent or not profile.is_agent_active:
+        # Redirect non-agents or inactive agents back to main dashboard
+        return redirect("dashboard")
+
+    # Wallet balance (assumes you have a field or calculation method in profile)
+    wallet_balance = getattr(profile, "wallet_balance", 0)  # default to 0 if not yet implemented
+
+    # Commission earned (example: 5% of paid purchases)
+    paid_purchases = Purchase.objects.filter(user=user, paid=True)
+    commission_earned = sum(p.amount * Decimal("0.05") for p in paid_purchases)  # 5% commission
+
+    # Total sales (number of purchases)
+    total_sales = paid_purchases.count()
+
+    # Total sales volume
+    total_volume = paid_purchases.aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
+    # Recent sales (latest 8)
+    recent_sales = Purchase.objects.filter(user=user).order_by("-created_at")[:8]
+
+    # Bundles for Quick Sell form
+    bundles = Bundle.objects.all().order_by("price")
+
+    context = {
+        "wallet_balance": wallet_balance,
+        "commission_earned": commission_earned,
+        "total_sales": total_sales,
+        "total_volume": total_volume,
+        "recent_sales": recent_sales,
+        "bundles": bundles,
+    }
+
+    return render(request, "core/agent_dashboard.html", context)
+
+
+@login_required
+def load_wallet(request):
+    """
+    Example view to let agent top up wallet. You can integrate Paystack or other payment provider.
+    """
+    user = request.user
+    profile = getattr(user, "profile", None)
+
+    if not profile or not profile.is_agent or not profile.is_agent_active:
+        return redirect("dashboard")
+
+    if request.method == "POST":
+        amount = request.POST.get("amount")
+        if amount:
+            # Integrate payment logic here, e.g., initialize Paystack transaction
+            messages.success(request, f"Wallet top-up of ₵{amount} initialized successfully!")
+            return redirect("agent_dashboard")
+
+    return render(request, "core/load_wallet.html")
 
 
 # -------------------------
@@ -566,3 +669,17 @@ def agent_dashboard(request):
         'bundles': Bundle.objects.all().order_by("price")[:20],
     }
     return render(request, 'core/agent_dashboard.html', context)
+
+@login_required
+def api_docs(request):
+    # Show all bundles dynamically
+    bundles = Bundle.objects.all().order_by("price")
+
+    # Get the first API key for the user (if any)
+    api_key = ApiKey.objects.filter(user=request.user, active=True).first()
+
+    context = {
+        "bundles": bundles,
+        "api_key": api_key,
+    }
+    return render(request, "core/api_docs.html", context)
