@@ -8,38 +8,50 @@
   {% load static %}
   <link rel="stylesheet" href="{% static 'core/css/style.css' %}">
   <style>
-    .mobile-sidebar {
+    /* Mobile sidebar (existing) */
+    .mobile-sidebar { position: fixed; top: 0; left: -260px; width: 250px; height: 100%; background: #2d035a; color: #fff; transition: left .3s ease; z-index: 1050; padding-top: 60px; }
+    .mobile-sidebar.open { left: 0; }
+    .mobile-sidebar a { color: #ddd; text-decoration: none; display: block; padding: 12px 20px; border-bottom: 1px solid #3b0a75; }
+    .mobile-sidebar a:hover { background: #3b0a75; color: #fff; }
+
+    /* Desktop left sidebar */
+    .left-sidebar {
+      width: 240px;
+      min-height: calc(100vh - 56px);
+      background: #2d035a;
+      color: #fff;
+      padding-top: 20px;
       position: fixed;
-      top: 0;
-      left: -260px;
-      width: 250px;
-      height: 100%;
-      background: #2d035a; /* Violet background */
-      color: #fff;
-      transition: left 0.3s ease;
-      z-index: 1050;
-      padding-top: 60px;
-    }
-    .mobile-sidebar.open {
+      top: 56px;  /* header height */
       left: 0;
+      transition: transform .25s ease;
+      z-index: 1000;
     }
-    .mobile-sidebar a {
-      color: #ddd;
-      text-decoration: none;
-      display: block;
-      padding: 12px 20px;
-      border-bottom: 1px solid #3b0a75;
-    }
-    .mobile-sidebar a:hover {
-      background: #3b0a75;
+    .left-sidebar.collapsed { transform: translateX(-100%); }
+    main.container.with-sidebar { margin-left: 260px; transition: margin-left .25s ease; }
+    main.container.no-sidebar { margin-left: 20px; }
+
+    .left-sidebar a { color: #ddd; display:block; padding:12px 18px; text-decoration:none; }
+    .left-sidebar a:hover { background:#3b0a75; color:#fff; }
+
+    header.bg-violet { background-color: #2d035a !important; }
+    footer { background: #f8f9fa; color: #666; }
+
+    /* small collapse button */
+    #sidebarCollapseBtn {
+      position: absolute;
+      right: -36px;
+      top: 12px;
+      background: #2d035a;
       color: #fff;
-    }
-    header.bg-violet {
-      background-color: #2d035a !important;
-    }
-    footer {
-      background: #f8f9fa;
-      color: #666;
+      border-radius: 6px;
+      border: 1px solid rgba(255,255,255,0.08);
+      width: 34px;
+      height: 34px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
     }
   </style>
 </head>
@@ -64,6 +76,19 @@
     </div>
   </div>
 </header>
+
+<!-- Desktop sidebar -->
+<div id="leftSidebar" class="left-sidebar d-none d-lg-block">
+  <div id="sidebarCollapseBtn" title="Close sidebar">×</div>
+  <div class="px-3">
+    <h5 class="text-white fw-bold">Menu</h5>
+    <a href="{% url 'dashboard' %}">🏠 Dashboard</a>
+    <a href="{% url 'buy_bundle' %}">📶 Buy Data</a>
+    <a href="{% url 'my_purchases' %}">🧾 Order History</a>
+    <a href="{% url 'profile' %}">👤 Profile</a>
+    <a href="{% url 'logout' %}">🚪 Logout</a>
+  </div>
+</div>
 
 <!-- Sidebar for mobile -->
 <div id="mobileSidebar" class="mobile-sidebar d-lg-none">
@@ -102,22 +127,35 @@
 <script>
   const menuToggle = document.getElementById('menuToggle');
   const mobileSidebar = document.getElementById('mobileSidebar');
+  const leftSidebar = document.getElementById('leftSidebar');
+  const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
+
   if (menuToggle) {
     menuToggle.addEventListener('click', () => {
       mobileSidebar.classList.toggle('open');
     });
   }
 
-  // Password toggle
+  // Desktop collapse
+  if (sidebarCollapseBtn && leftSidebar) {
+    sidebarCollapseBtn.addEventListener('click', () => {
+      leftSidebar.classList.toggle('collapsed');
+      // add a small helper class to body or main container if desired
+      document.querySelector('.container').classList.toggle('no-sidebar');
+    });
+  }
+
+  // Password toggle helper (re-used by login/signup templates)
   function togglePassword(id, iconId) {
     const field = document.getElementById(id);
     const icon = document.getElementById(iconId);
+    if (!field) return;
     if (field.type === "password") {
       field.type = "text";
-      icon.textContent = "🙈";
+      if (icon) icon.textContent = "🙈";
     } else {
       field.type = "password";
-      icon.textContent = "👁️";
+      if (icon) icon.textContent = "👁️";
     }
   }
 </script>

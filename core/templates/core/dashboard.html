@@ -1,15 +1,84 @@
 {% extends 'core/base.html' %}
 {% block content %}
-<div class="text-center py-5">
-  <h1 class="fw-bold">Welcome, {{ user.username }}</h1>
-  <a href="{% url 'buy_bundle' %}" class="btn btn-warning btn-lg mt-3">Buy Bundles</a>
+<div class="py-3">
+  {% if is_agent %}
+    <h3 class="mb-3">Agent Dashboard — {{ user.username }}</h3>
 
-  <!-- Customer Trust Message -->
-  <div class="mt-4 p-3 bg-light border rounded">
-    <p class="mb-0">
-      ❤️ Thousands of customers trust <strong>RichData Palace</strong> for fast, reliable, and affordable data bundle purchases.
-      Join them and stay connected today!
-    </p>
-  </div>
+    <div class="row g-3 mb-4">
+      <div class="col-12 col-md-4">
+        <div class="card shadow-sm p-3">
+          <div class="d-flex justify-content-between align-items-center">
+            <div>
+              <div class="small text-muted">Total Sales</div>
+              <div class="h4 fw-bold">{{ total_sales }}</div>
+            </div>
+            <div class="text-end">
+              <div class="small text-muted">Volume</div>
+              <div class="fw-bold">₵{{ total_volume }}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="col-12 col-md-8">
+        <div class="card shadow-sm p-3">
+          <div class="d-flex justify-content-between align-items-center mb-2">
+            <div class="fw-bold">Quick Sell</div>
+            <div class="small text-muted">Sell a bundle to a customer</div>
+          </div>
+
+          <form method="POST" action="{% url 'buy_bundle' %}" id="agentSellForm" class="row g-2">
+            {% csrf_token %}
+            <div class="col-md-4">
+              <select name="bundle_id" class="form-select" required>
+                <option value="">Select bundle</option>
+                {% for b in bundles %}
+                  <option value="{{ b.id }}">{{ b.name }} — ₵{{ b.price }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-md-4">
+              <input name="recipient" class="form-control" placeholder="054XXXXXXXX" required>
+            </div>
+            <div class="col-md-2">
+              <button class="btn btn-success w-100">Charge & Sell</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <h5 class="mb-2">Recent Sales</h5>
+    <div class="list-group">
+      {% for p in recent_sales %}
+        <div class="list-group-item d-flex justify-content-between align-items-center">
+          <div>
+            <div class="fw-bold">{{ p.bundle.name }} — ₵{{ p.amount }}</div>
+            <div class="small text-muted">To: {{ p.recipient }} · {{ p.created_at|date:"Y-m-d H:i" }}</div>
+          </div>
+          <div class="small text-muted">
+            {% if p.paid %}Paid{% else %}Pending{% endif %}
+          </div>
+        </div>
+      {% empty %}
+        <div class="list-group-item text-center text-muted">No recent sales</div>
+      {% endfor %}
+    </div>
+
+  {% else %}
+    <div class="text-center py-5">
+      <h1 class="fw-bold">Welcome, {{ user.username }}</h1>
+      <p class="lead">Buy bundles or register as an agent to sell bundles through the app.</p>
+      <a href="{% url 'buy_bundle' %}" class="btn btn-warning btn-lg mt-3">Buy Bundles</a>
+
+      {% if user.profile.is_agent and not user.profile.is_agent_active %}
+        <div class="mt-4">
+          <p class="text-center small text-muted">You requested agent registration but haven't completed payment.</p>
+          <a href="{% url 'agent_register' reg_id=user.agentregistration_set.filter(paid=False).first.id %}" class="btn btn-primary mt-2">Complete Agent Registration</a>
+        </div>
+      {% endif %}
+
+    </div>
+  {% endif %}
 </div>
 {% endblock %}

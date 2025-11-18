@@ -1,4 +1,3 @@
-# core/forms.py
 from django import forms
 from django.contrib.auth.models import User
 
@@ -19,6 +18,7 @@ class SignupForm(forms.ModelForm):
         if p1 and p1 != p2:
             raise forms.ValidationError('Passwords do not match.')
         return cleaned
+
 
 class BuyForm(forms.Form):
     recipient = forms.CharField(max_length=40, label='Recipient number')

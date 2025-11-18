@@ -32,6 +32,9 @@
     <div class="mb-2 form-check">
       {{ form.is_agent }} {{ form.is_agent.label_tag }}
     </div>
+    <div class="mb-2">
+      {{ form.phone.label_tag }} {{ form.phone }}
+    </div>
     <button class="btn btn-primary w-100">Sign up</button>
   </form>
   <p class="mt-3 text-center">Already have an account? <a href="{% url 'login' %}">Login</a></p>

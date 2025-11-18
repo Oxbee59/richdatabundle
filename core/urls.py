@@ -1,4 +1,3 @@
-# core/urls.py
 from django.urls import path
 from . import views
 
@@ -12,4 +11,8 @@ urlpatterns = [
     path('my-purchases/', views.my_purchases, name='my_purchases'),
     path('profile/', views.profile, name='profile'),
     path('paystack-webhook/', views.paystack_webhook, name='paystack_webhook'),
+
+    # Agent registration payment start
+    path('agent-register/<int:reg_id>/', views.agent_register, name='agent_register'),
 ]
+
