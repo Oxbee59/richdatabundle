@@ -1,9 +1,39 @@
-<h2>Agent Registration</h2>
-<form method="POST">
-  {% csrf_token %}
-  <label>Company Name:</label>
-  <input type="text" name="company_name" required><br>
-  <label>Phone:</label>
-  <input type="text" name="phone" required><br>
-  <button type="submit">Register</button>
-</form>
+{% extends "core/base.html" %}
+{% load static %}
+
+{% block content %}
+<div class="container py-5" style="max-width: 600px;">
+
+    <div class="card shadow p-4">
+        <h2 class="fw-bold mb-3 text-center">🤝 Agent Registration</h2>
+
+        <p class="text-muted text-center">
+            Become a RichDataBundles Agent and earn commissions on every sale.
+        </p>
+
+        <ul class="list-group mb-4">
+            <li class="list-group-item">✔ Earn commissions instantly</li>
+            <li class="list-group-item">✔ Access reseller dashboard</li>
+            <li class="list-group-item">✔ API Access for your platform</li>
+        </ul>
+
+        <form method="POST">
+            {% csrf_token %}
+
+            <div class="mb-3">
+                <label class="form-label">Company / Business Name</label>
+                <input type="text" name="company_name" class="form-control" placeholder="Example: Osborn Ventures" required>
+            </div>
+
+            <div class="mb-3">
+                <label class="form-label">Phone Number</label>
+                <input type="text" name="phone" class="form-control" placeholder="054XXXXXXX" required>
+            </div>
+
+            <button class="btn btn-primary w-100 py-2">Proceed to Payment</button>
+        </form>
+
+    </div>
+
+</div>
+{% endblock %}

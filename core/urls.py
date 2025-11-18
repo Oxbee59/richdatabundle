@@ -10,9 +10,11 @@ urlpatterns = [
     path('payment-success/', views.payment_success, name='payment_success'),
     path('my-purchases/', views.my_purchases, name='my_purchases'),
     path('profile/', views.profile, name='profile'),
-    path('agent/register/', views.agent_register, name='agent_register'),
-    path('agent/dashboard/', views.agent_dashboard, name='agent_dashboard'),
-    path('api-docs/', views.api_docs, name='api_docs'),
+    path('agent-register/start/', views.agent_register_start, name='agent_register_start'),
+path('agent-register/<int:reg_id>/', views.agent_register, name='agent_register'),
+path('agent/wallet/topup/', views.agent_wallet_topup, name='agent_wallet_topup'),
+path('agent-dashboard/', views.agent_dashboard, name='agent_dashboard'),
+path('api-docs/', views.api_docs, name='api_docs'),
 
 
     # Accept both webhook URL forms to avoid 404 from Paystack

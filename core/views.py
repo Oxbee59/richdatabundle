@@ -1,3 +1,4 @@
+# core/views.py
 from django.shortcuts import render, redirect
 from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
@@ -26,7 +27,7 @@ def signup_view(request):
             user = form.save(commit=False)
             user.set_password(form.cleaned_data["password1"])
             user.save()
-            # set profile flags
+            # set profile flags (profile signal creates profile on user creation)
             profile = user.profile
             profile.phone = form.cleaned_data.get("phone", "")
             profile.is_agent = form.cleaned_data.get("is_agent", False)
@@ -34,7 +35,7 @@ def signup_view(request):
 
             # If user requested agent registration, start agent registration payment
             if profile.is_agent:
-                # create AgentRegistration record and redirect to payment
+                # create AgentRegistration record and redirect to payment start view
                 amount = Decimal(getattr(settings, "AGENT_REG_FEE", "0.00"))
                 reg = AgentRegistration.objects.create(user=user, amount=amount, paid=False)
                 return redirect("agent_register", reg_id=reg.id)
@@ -66,8 +67,25 @@ def logout_view(request):
 
 
 # -------------------------
-# Agent registration - initialize Paystack for registration fee
+# Agent registration helpers
 # -------------------------
+@login_required
+def agent_register_start(request):
+    """
+    Called when a user clicks "Become an Agent".
+    Creates an AgentRegistration record (if none pending) and redirects to agent_register view.
+    """
+    user = request.user
+    # if there's an unpaid registration already, reuse it
+    existing = user.agentregistration_set.filter(paid=False).first()
+    if existing:
+        return redirect("agent_register", reg_id=existing.id)
+
+    amount = Decimal(getattr(settings, "AGENT_REG_FEE", "0.00"))
+    reg = AgentRegistration.objects.create(user=user, amount=amount, paid=False)
+    return redirect("agent_register", reg_id=reg.id)
+
+
 @login_required
 def agent_register(request, reg_id):
     """
@@ -87,7 +105,6 @@ def agent_register(request, reg_id):
         "amount": int(reg.amount * 100),
         # use a reference we can parse: "agent-<id>"
         "reference": f"agent-{reg.id}",
-        # callback to webhook (Paystack will POST to webhook configured in dashboard)
         "callback_url": request.build_absolute_uri("/paystack-webhook/"),
         "metadata": {"purpose": "agent_registration", "user_id": request.user.id},
     }
@@ -108,6 +125,51 @@ def agent_register(request, reg_id):
     return redirect("dashboard")
 
 
+@login_required
+def agent_wallet_topup(request):
+    """
+    Initialize a wallet top-up for an agent. This only starts the Paystack flow.
+    Webhook must credit the profile.wallet_balance (if the field exists).
+    """
+    if request.method != "POST":
+        return redirect("agent_dashboard")
+
+    amount_raw = request.POST.get("amount")
+    try:
+        amount = Decimal(amount_raw)
+        if amount <= 0:
+            raise ValueError("Invalid amount")
+    except Exception:
+        messages.error(request, "Please provide a valid top-up amount.")
+        return redirect("agent_dashboard")
+
+    user = request.user
+    # create a reference using wallet-<user_id>-<timestamp>
+    import time
+    ref = f"wallet-{user.id}-{int(time.time())}"
+
+    headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+    data = {
+        "email": user.email or f"{user.username}@example.com",
+        "amount": int(amount * 100),
+        "reference": ref,
+        "callback_url": request.build_absolute_uri("/paystack-webhook/"),
+        "metadata": {"purpose": "wallet_topup", "user_id": user.id},
+    }
+
+    try:
+        r = requests.post("https://api.paystack.co/transaction/initialize", headers=headers, json=data, timeout=15)
+        res = r.json()
+        if res.get("status"):
+            return redirect(res["data"]["authorization_url"])
+        else:
+            messages.error(request, f"Top-up initialization failed: {res.get('message')}")
+    except Exception as e:
+        messages.error(request, f"Error initializing top-up: {e}")
+
+    return redirect("agent_dashboard")
+
+
 # -------------------------
 # Dashboard
 # -------------------------
@@ -118,6 +180,12 @@ def dashboard(request):
 
     # bundles for quick-sell widget
     context["bundles"] = Bundle.objects.all().order_by("price")[:12]
+
+    # dashboard metadata counts
+    context["bundles_count"] = Bundle.objects.count()
+    context["purchase_count"] = Purchase.objects.filter(user=user).count()
+    # recent purchases (for showing on dashboard)
+    context["recent_purchases"] = Purchase.objects.filter(user=user).order_by("-created_at")[:6]
 
     try:
         profile = user.profile
@@ -130,20 +198,30 @@ def dashboard(request):
         pending_registration = user.agentregistration_set.filter(paid=False).first()
     context["pending_registration"] = pending_registration
 
-    # agent dashboard data
+    # agent dashboard data (only if active agent)
     if profile and profile.is_agent and profile.is_agent_active:
         total_sales = Purchase.objects.filter(user=user, paid=True).count()
         recent_sales = Purchase.objects.filter(user=user).order_by("-created_at")[:8]
         total_volume = Purchase.objects.filter(user=user, paid=True).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
+        # wallet balance (best-effort: show 0.00 if profile has no field)
+        wallet_balance = getattr(profile, "wallet_balance", Decimal("0.00"))
 
         context.update({
             "is_agent": True,
             "total_sales": total_sales,
             "recent_sales": recent_sales,
             "total_volume": total_volume,
+            "wallet_balance": wallet_balance,
         })
     else:
         context["is_agent"] = False
+        # present a preview wallet_balance so template can display something
+        context["wallet_balance"] = getattr(profile, "wallet_balance", Decimal("0.00")) if profile else Decimal("0.00")
+
+    # convenience counts for templates
+    context["purchase_count"] = Purchase.objects.filter(user=user).count()
+    context["bundles_count"] = Bundle.objects.count()
 
     return render(request, "core/dashboard.html", context)
 
@@ -213,7 +291,7 @@ def my_purchases(request):
 
 
 # -------------------------
-# Paystack Webhook (handles purchase payments AND agent registrations)
+# Paystack Webhook (handles purchase payments AND agent registrations AND wallet topups)
 # Accepts both /paystack-webhook/ and /paystack/webhook/ paths (we add both in urls)
 # -------------------------
 @csrf_exempt
@@ -229,6 +307,7 @@ def paystack_webhook(request):
 
     if event == "charge.success":
         reference = data.get("reference")
+        # Try to be defensive: reference may be None or unexpected format
         try:
             if reference and str(reference).startswith("agent-"):
                 # agent registration flow
@@ -246,6 +325,34 @@ def paystack_webhook(request):
                     profile.save()
                 except AgentRegistration.DoesNotExist:
                     pass
+
+            elif reference and str(reference).startswith("wallet-"):
+                # wallet top-up flow. reference format: wallet-<user_id>-<ts>
+                try:
+                    parts = str(reference).split("-")
+                    # parts[1] is user id in our prefix
+                    uid = int(parts[1])
+                    amt = data.get("amount")  # in kobo
+                    credited = (Decimal(amt) / Decimal(100)) if amt is not None else None
+                    user = User.objects.filter(id=uid).first()
+                    if user:
+                        profile = getattr(user, "profile", None)
+                        # only credit if profile has a writable wallet_balance attribute
+                        if profile and hasattr(profile, "wallet_balance"):
+                            # read existing safely
+                            try:
+                                current = Decimal(getattr(profile, "wallet_balance", "0.00"))
+                            except Exception:
+                                current = Decimal("0.00")
+                            try:
+                                profile.wallet_balance = current + (credited or Decimal("0.00"))
+                                profile.save()
+                            except Exception:
+                                # if saving fails, do nothing (admin will reconcile)
+                                pass
+                except Exception:
+                    pass
+
             else:
                 # treat as Purchase id (numeric)
                 try:
@@ -413,13 +520,24 @@ def api_agent_transactions(request, user_id):
             "paid_at": t.paid_at.isoformat() if t.paid_at else None,
         })
     return JsonResponse({"status": "ok", "user": u.username, "data": data})
+
+
+# -------------------------
+# Simple UI helpers
+# -------------------------
 def payment_success(request):
     return render(request, "payment_success.html")
+
+
 def profile(request):
     return render(request, "core/profile.html")
+
+
 @login_required
 def api_docs(request):
     return render(request, "core/api_docs.html")
+
+
 @login_required
 def agent_dashboard(request):
     """
@@ -428,16 +546,23 @@ def agent_dashboard(request):
     user = request.user
     profile = getattr(user, 'profile', None)
     if not profile or not profile.is_agent or not profile.is_agent_active:
-        # non-agent users redirected
+        # non-agent users redirected to main dashboard (they can preview)
         return redirect('dashboard')
 
     total_sales = Purchase.objects.filter(user=user, paid=True).count()
-    total_volume = Purchase.objects.filter(user=user, paid=True).aggregate(total=Sum('amount'))['total'] or 0
-    recent_sales = Purchase.objects.filter(user=user).order_by('-created_at')[:8]
+    total_volume = Purchase.objects.filter(user=user, paid=True).aggregate(total=Sum('amount'))['total'] or Decimal("0.00")
+    recent_sales = Purchase.objects.filter(user=user).order_by('-created_at')[:12]
+
+    # wallet & commission (best-effort: rely on profile fields if they exist)
+    wallet = getattr(profile, "wallet_balance", Decimal("0.00"))
+    commission = getattr(profile, "commission_balance", Decimal("0.00"))
 
     context = {
         'total_sales': total_sales,
         'total_volume': total_volume,
         'recent_sales': recent_sales,
+        'wallet': wallet,
+        'commission': commission,
+        'bundles': Bundle.objects.all().order_by("price")[:20],
     }
     return render(request, 'core/agent_dashboard.html', context)

@@ -1,50 +1,106 @@
 {% extends "core/base.html" %}
-{% block content %}
-<h1>RichDataBundles API Documentation</h1>
+{% load static %}
 
-<h2>1. List Bundles</h2>
-<p><code>GET /api/bundles/</code></p>
-<p>Returns all available bundles:</p>
-<pre>
+{% block content %}
+<div class="container py-4">
+
+    <h1 class="fw-bold mb-4">📘 RichDataBundles API Documentation</h1>
+    <p class="text-muted">Use this API to integrate bundle purchases into websites, mobile apps, or reseller platforms.</p>
+
+    <!-- SECTION: API KEY -->
+    <div class="card p-4 mb-4 shadow-sm">
+        <h4 class="fw-bold">🔑 Your API Key</h4>
+        {% if api_key %}
+            <p class="mt-3"><strong>{{ api_key.key }}</strong></p>
+            <p class="small text-muted">Keep this key private.</p>
+        {% else %}
+            <p class="text-muted">No API key generated yet.</p>
+            <a href="{% url 'generate_api_key' %}" class="btn btn-primary mt-2">Generate API Key</a>
+        {% endif %}
+    </div>
+
+    <!-- SECTION: ENDPOINTS -->
+    <div class="card p-4 mb-4 shadow-sm">
+        <h3 class="fw-bold mb-3">📡 API Endpoints</h3>
+
+        <div class="mb-3">
+            <h5>1. Get Bundles</h5>
+            <code>GET /api/bundles/</code>
+            <pre class="bg-dark text-white p-3 mt-2 rounded">
 Headers:
-  X-API-KEY: your-key
+  X-API-KEY: YOUR_API_KEY
+
 Response:
 {
   "status": "ok",
   "data": [
-    {"id": 1, "name": "MTN 1GB", "code": "mtn_1gb", "price": "100", ...}
+    {"id": 1, "name": "MTN 1GB", "price": "12.00", "network": "MTN"}
   ]
 }
-</pre>
+            </pre>
+        </div>
 
-<h2>2. Sell Bundle</h2>
-<p><code>POST /api/sell/</code></p>
-<pre>
+        <div class="mb-3">
+            <h5>2. Sell Bundle</h5>
+            <code>POST /api/sell/</code>
+            <pre class="bg-dark text-white p-3 mt-2 rounded">
 Headers:
-  X-API-KEY: your-key
+  Content-Type: application/json
+  X-API-KEY: YOUR_API_KEY
+
 Body:
 {
   "bundle_id": 1,
-  "recipient": "024xxxxxxx",
-  "agent_username": "agent01"
+  "recipient": "0540000000",
+  "agent_username": "your_username"
 }
-Response:
-{
-  "status": "ok",
-  "authorization_url": "https://paystack.com/..."
-}
-</pre>
 
-<h2>3. Agent Transactions</h2>
-<p><code>GET /api/agent/{user_id}/tx/</code></p>
-<pre>
-Headers:
-  X-API-KEY: your-key
 Response:
 {
   "status": "ok",
-  "user": "agent01",
-  "data": [ ...transactions... ]
+  "message": "Transaction initiated",
+  "transaction_id": "TX123456"
 }
-</pre>
+            </pre>
+        </div>
+
+        <div class="mb-3">
+            <h5>3. Agent Transactions</h5>
+            <code>GET /api/agent/&lt;user_id&gt;/tx/</code>
+            <pre class="bg-dark text-white p-3 mt-2 rounded">
+Headers:
+  X-API-KEY: YOUR_API_KEY
+
+Response:
+{
+  "status": "ok",
+  "data": [
+    {"id": 10, "bundle": "1GB MTN", "recipient": "054...", "amount": "12.00"}
+  ]
+}
+            </pre>
+        </div>
+
+    </div>
+
+    <!-- CODE EXAMPLES -->
+    <div class="card p-4 shadow-sm mb-4">
+        <h3 class="fw-bold">💻 Code Examples</h3>
+
+        <h6 class="mt-3">Python</h6>
+        <pre class="bg-dark text-white p-3 rounded">import requests
+
+r = requests.get("https://yourdomain.com/api/bundles/", 
+    headers={"X-API-KEY": "YOUR_KEY"})
+print(r.json())
+        </pre>
+
+        <h6>JavaScript</h6>
+        <pre class="bg-dark text-white p-3 rounded">fetch("/api/bundles/", {
+  headers: { "X-API-KEY": "YOUR_KEY" }
+}).then(r => r.json()).then(console.log);
+        </pre>
+    </div>
+
+</div>
 {% endblock %}

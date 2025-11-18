@@ -4,54 +4,74 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
   <title>RICHDATABUNDLES</title>
-  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   {% load static %}
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
   <link rel="stylesheet" href="{% static 'core/css/style.css' %}">
   <style>
-    /* Mobile sidebar (existing) */
-    .mobile-sidebar { position: fixed; top: 0; left: -260px; width: 250px; height: 100%; background: #2d035a; color: #fff; transition: left .3s ease; z-index: 1050; padding-top: 60px; }
-    .mobile-sidebar.open { left: 0; }
-    .mobile-sidebar a { color: #ddd; text-decoration: none; display: block; padding: 12px 20px; border-bottom: 1px solid #3b0a75; }
-    .mobile-sidebar a:hover { background: #3b0a75; color: #fff; }
-
-    /* Desktop left sidebar */
+    /* Left sidebar (desktop) */
     .left-sidebar {
-      width: 240px;
+      width: 250px;
       min-height: calc(100vh - 56px);
       background: #2d035a;
       color: #fff;
-      padding-top: 20px;
+      padding-top: 22px;
       position: fixed;
       top: 56px;  /* header height */
       left: 0;
-      transition: transform .25s ease;
-      z-index: 1000;
+      transition: transform .25s ease, box-shadow .25s ease;
+      z-index: 1100;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+      border-right: 1px solid rgba(255,255,255,0.03);
     }
-    .left-sidebar.collapsed { transform: translateX(-100%); }
-    main.container.with-sidebar { margin-left: 260px; transition: margin-left .25s ease; }
-    main.container.no-sidebar { margin-left: 20px; }
+    .left-sidebar.collapsed { transform: translateX(-110%); box-shadow: none; }
+    /* Close (floating) button inside the sidebar — Option A */
+    .left-sidebar .sidebar-close {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      background: rgba(255,255,255,0.06);
+      color: #fff;
+      border: none;
+      width: 34px;
+      height: 34px;
+      border-radius: 6px;
+      display:flex;align-items:center;justify-content:center;
+      cursor: pointer;
+    }
+    .left-sidebar .sidebar-close:hover { background: rgba(255,255,255,0.12); }
 
-    .left-sidebar a { color: #ddd; display:block; padding:12px 18px; text-decoration:none; }
-    .left-sidebar a:hover { background:#3b0a75; color:#fff; }
+    /* Sidebar links */
+    .left-sidebar .menu-title { padding: 0 18px 8px; margin-bottom: 8px; }
+    .left-sidebar a { color: #e9e6fb; display:block; padding:10px 18px; text-decoration:none; border-radius:6px; margin:6px 10px; }
+    .left-sidebar a:hover { background: rgba(255,255,255,0.06); color:#fff; }
+
+    /* mobile sidebar (overlay slideout) */
+    .mobile-sidebar {
+      position: fixed; top: 0; left: 0; bottom: 0;
+      width: 78%;
+      max-width: 320px;
+      background: #2d035a;
+      color: #fff;
+      transform: translateX(-120%);
+      transition: transform .22s ease;
+      z-index: 1200;
+      padding-top: 72px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.18);
+    }
+    .mobile-sidebar.open { transform: translateX(0); }
+    .mobile-sidebar .close-mobile { position:absolute; top:10px; right:12px; background:transparent; color:#fff; border:none; font-size:22px; }
+
+    /* main content with sidebar spacing */
+    main.container.with-sidebar { margin-left: 270px; transition: margin-left .25s ease; }
+    main.container.no-sidebar { margin-left: 20px; transition: margin-left .25s ease; }
 
     header.bg-violet { background-color: #2d035a !important; }
     footer { background: #f8f9fa; color: #666; }
 
-    /* small collapse button */
-    #sidebarCollapseBtn {
-      position: absolute;
-      right: -36px;
-      top: 12px;
-      background: #2d035a;
-      color: #fff;
-      border-radius: 6px;
-      border: 1px solid rgba(255,255,255,0.08);
-      width: 34px;
-      height: 34px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
+    /* small responsive fixes */
+    @media (max-width: 991px) {
+      .left-sidebar { display: none; }
+      main.container.with-sidebar, main.container.no-sidebar { margin-left: 20px; }
     }
   </style>
 </head>
@@ -60,6 +80,7 @@
 <header class="bg-violet text-white py-3">
   <div class="container d-flex align-items-center justify-content-between">
     <div class="d-flex align-items-center">
+      <!-- mobile menu toggle -->
       <button id="menuToggle" class="btn btn-sm btn-outline-light me-2 d-lg-none">≡</button>
       <a href="{% url 'dashboard' %}" class="text-decoration-none text-white fs-4 fw-bold">RICHDATABUNDLES</a>
     </div>
@@ -77,28 +98,51 @@
   </div>
 </header>
 
-<!-- Desktop sidebar -->
-<div id="leftSidebar" class="left-sidebar d-none d-lg-block">
-  <div id="sidebarCollapseBtn" title="Close sidebar">×</div>
+<!-- Desktop left sidebar (single source of truth) -->
+<div id="leftSidebar" class="left-sidebar d-none d-lg-block" role="navigation" aria-label="Main sidebar">
+  <button class="sidebar-close" id="sidebarClose" title="Close sidebar">×</button>
   <div class="px-3">
-    <h5 class="text-white fw-bold">Menu</h5>
+    <h6 class="menu-title text-white fw-bold">Menu</h6>
+
     <a href="{% url 'dashboard' %}">🏠 Dashboard</a>
     <a href="{% url 'buy_bundle' %}">📶 Buy Data</a>
+
+    {# Show agent dashboard link if user requested agent (even if not active) so they can glimpse #}
+    {% if user.is_authenticated and user.profile.is_agent %}
+      <a href="{% url 'agent_dashboard' %}">🧑‍💼 Agent Dashboard</a>
+    {% endif %}
+
+    {# API Docs only visible to active agents #}
+    {% if user.is_authenticated and user.profile.is_agent_active %}
+      <a href="{% url 'api_docs' %}">📡 API Docs</a>
+    {% endif %}
+
     <a href="{% url 'my_purchases' %}">🧾 Order History</a>
     <a href="{% url 'profile' %}">👤 Profile</a>
     <a href="{% url 'logout' %}">🚪 Logout</a>
   </div>
 </div>
 
-<!-- Sidebar for mobile -->
-<div id="mobileSidebar" class="mobile-sidebar d-lg-none">
+<!-- Mobile sidebar (slide out) -->
+<div id="mobileSidebar" class="mobile-sidebar d-lg-none" aria-hidden="true">
+  <button class="close-mobile" id="mobileSidebarClose" aria-label="Close">×</button>
   <div class="px-3">
     <div class="text-center mb-4">
       <h5 class="fw-bold text-white">RICHDATABUNDLES</h5>
       <p class="small text-light mb-0">{{ user.username|default:"Guest" }}</p>
     </div>
+
     <a href="{% url 'dashboard' %}">🏠 Dashboard</a>
     <a href="{% url 'buy_bundle' %}">📶 Buy Data</a>
+
+    {% if user.is_authenticated and user.profile.is_agent %}
+      <a href="{% url 'agent_dashboard' %}">🧑‍💼 Agent Dashboard</a>
+    {% endif %}
+
+    {% if user.is_authenticated and user.profile.is_agent_active %}
+      <a href="{% url 'api_docs' %}">📡 API Docs</a>
+    {% endif %}
+
     <a href="{% url 'my_purchases' %}">🧾 Order History</a>
     <a href="{% url 'profile' %}">👤 Profile</a>
     <a href="{% url 'logout' %}">🚪 Logout</a>
@@ -106,7 +150,7 @@
 </div>
 
 <main class="flex-fill">
-  <div class="container py-4">
+  <div class="container py-4 {% if not request.user.is_anonymous %}with-sidebar{% else %}no-sidebar{% endif %}">
     {% for message in messages %}
       <div class="alert alert-{{ message.tags|default:'info' }} alert-dismissible fade show" role="alert">
         {{ message }}
@@ -125,39 +169,58 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 <script>
+  // Elements
   const menuToggle = document.getElementById('menuToggle');
   const mobileSidebar = document.getElementById('mobileSidebar');
+  const mobileSidebarClose = document.getElementById('mobileSidebarClose');
   const leftSidebar = document.getElementById('leftSidebar');
-  const sidebarCollapseBtn = document.getElementById('sidebarCollapseBtn');
+  const sidebarClose = document.getElementById('sidebarClose');
+  const mainContainer = document.querySelector('main > .container');
 
+  // Mobile toggle
   if (menuToggle) {
     menuToggle.addEventListener('click', () => {
       mobileSidebar.classList.toggle('open');
+      mobileSidebar.setAttribute('aria-hidden', mobileSidebar.classList.contains('open') ? 'false' : 'true');
+    });
+  }
+  if (mobileSidebarClose) {
+    mobileSidebarClose.addEventListener('click', () => {
+      mobileSidebar.classList.remove('open');
+      mobileSidebar.setAttribute('aria-hidden','true');
     });
   }
 
-  // Desktop collapse
-  if (sidebarCollapseBtn && leftSidebar) {
-    sidebarCollapseBtn.addEventListener('click', () => {
+  // Desktop sidebar close (floating × inside sidebar)
+  if (sidebarClose && leftSidebar) {
+    sidebarClose.addEventListener('click', () => {
       leftSidebar.classList.toggle('collapsed');
-      // add a small helper class to body or main container if desired
-      document.querySelector('.container').classList.toggle('no-sidebar');
+      if (mainContainer) {
+        mainContainer.classList.toggle('no-sidebar');
+        mainContainer.classList.toggle('with-sidebar');
+      }
     });
   }
 
-  // Password toggle helper (re-used by login/signup templates)
-  function togglePassword(id, iconId) {
-    const field = document.getElementById(id);
-    const icon = document.getElementById(iconId);
-    if (!field) return;
-    if (field.type === "password") {
-      field.type = "text";
-      if (icon) icon.textContent = "🙈";
+  // small helper — keep main container margin correct on page load & resize
+  function adjustMainForSidebar() {
+    if (window.innerWidth >= 992) {
+      // desktop: use sidebar state
+      if (leftSidebar && leftSidebar.classList.contains('collapsed')) {
+        mainContainer && mainContainer.classList.add('no-sidebar');
+        mainContainer && mainContainer.classList.remove('with-sidebar');
+      } else {
+        mainContainer && mainContainer.classList.add('with-sidebar');
+        mainContainer && mainContainer.classList.remove('no-sidebar');
+      }
     } else {
-      field.type = "password";
-      if (icon) icon.textContent = "👁️";
+      // mobile — no left sidebar space
+      mainContainer && mainContainer.classList.add('no-sidebar');
+      mainContainer && mainContainer.classList.remove('with-sidebar');
     }
   }
+  window.addEventListener('resize', adjustMainForSidebar);
+  document.addEventListener('DOMContentLoaded', adjustMainForSidebar);
 </script>
 </body>
 </html>
