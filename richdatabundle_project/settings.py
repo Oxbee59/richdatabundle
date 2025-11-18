@@ -164,3 +164,9 @@ LOGGING = {
         'level': 'INFO',
     },
 }
+PORT = os.environ.get('PORT')
+
+if PORT:
+    from dj_database_url import parse as db_url
+    # This ensures Django works with Render dynamically assigned PORT
+    DATABASES['default'] = DATABASES.get('default', {})

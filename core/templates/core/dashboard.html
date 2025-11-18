@@ -74,7 +74,11 @@
       {% if user.profile.is_agent and not user.profile.is_agent_active %}
         <div class="mt-4">
           <p class="text-center small text-muted">You requested agent registration but haven't completed payment.</p>
-          <a href="{% url 'agent_register' reg_id=user.agentregistration_set.filter(paid=False).first.id %}" class="btn btn-primary mt-2">Complete Agent Registration</a>
+
+          {% if pending_registration %}
+            <a href="{% url 'agent_register' reg_id=pending_registration.id %}" class="btn btn-primary mt-2">Complete Agent Registration</a>
+          {% endif %}
+
         </div>
       {% endif %}
 

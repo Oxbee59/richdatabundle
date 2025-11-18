@@ -3,8 +3,9 @@ from django.contrib.auth import authenticate, login, logout
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.conf import settings
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from django.views.decorators.csrf import csrf_exempt
+from django.views.decorators.http import require_http_methods
 from decimal import Decimal
 import requests
 import json
@@ -12,6 +13,8 @@ from django.utils.timezone import now
 from .forms import SignupForm, BuyForm
 from .models import Bundle, Purchase, AgentRegistration
 from django.contrib.auth.models import User
+from django.db.models import Sum
+from typing import Optional
 
 # -------------------------
 # Authentication & Signup
@@ -50,7 +53,6 @@ def login_view(request):
         user = authenticate(request, username=username, password=password)
         if user:
             login(request, user)
-            # redirect agents to dashboard (dashboard handles agent/cust content)
             return redirect("dashboard")
         else:
             messages.error(request, "Invalid username or password.")
@@ -85,7 +87,7 @@ def agent_register(request, reg_id):
         "amount": int(reg.amount * 100),
         # use a reference we can parse: "agent-<id>"
         "reference": f"agent-{reg.id}",
-        # set callback or rely on webhook; keep callback optional
+        # callback to webhook (Paystack will POST to webhook configured in dashboard)
         "callback_url": request.build_absolute_uri("/paystack-webhook/"),
         "metadata": {"purpose": "agent_registration", "user_id": request.user.id},
     }
@@ -113,20 +115,27 @@ def agent_register(request, reg_id):
 def dashboard(request):
     user = request.user
     context = {}
-    # shared context: bundles for quick-sell widget
+
+    # bundles for quick-sell widget
     context["bundles"] = Bundle.objects.all().order_by("price")[:12]
 
-    # If agent: show agent metrics
     try:
         profile = user.profile
     except Exception:
         profile = None
 
+    # pending agent registration (template-safe)
+    pending_registration: Optional[AgentRegistration] = None
+    if hasattr(user, "agentregistration_set"):
+        pending_registration = user.agentregistration_set.filter(paid=False).first()
+    context["pending_registration"] = pending_registration
+
+    # agent dashboard data
     if profile and profile.is_agent and profile.is_agent_active:
-        # agent metrics
         total_sales = Purchase.objects.filter(user=user, paid=True).count()
         recent_sales = Purchase.objects.filter(user=user).order_by("-created_at")[:8]
-        total_volume = Purchase.objects.filter(user=user, paid=True).aggregate(total=models.Sum("amount"))["total"] or Decimal("0.00")
+        total_volume = Purchase.objects.filter(user=user, paid=True).aggregate(total=Sum("amount"))["total"] or Decimal("0.00")
+
         context.update({
             "is_agent": True,
             "total_sales": total_sales,
@@ -134,10 +143,7 @@ def dashboard(request):
             "total_volume": total_volume,
         })
     else:
-        # regular customer view
-        context.update({
-            "is_agent": False,
-        })
+        context["is_agent"] = False
 
     return render(request, "core/dashboard.html", context)
 
@@ -208,14 +214,11 @@ def my_purchases(request):
 
 # -------------------------
 # Paystack Webhook (handles purchase payments AND agent registrations)
+# Accepts both /paystack-webhook/ and /paystack/webhook/ paths (we add both in urls)
 # -------------------------
 @csrf_exempt
+@require_http_methods(["POST"])
 def paystack_webhook(request):
-    """
-    Paystack sends 'charge.success' events. The 'reference' will be:
-     - "agent-<id>" for agent registration (we set that)
-     - "<purchase_id>" (numeric) for bundle purchases
-    """
     try:
         payload = json.loads(request.body.decode("utf-8"))
     except Exception:
@@ -226,9 +229,6 @@ def paystack_webhook(request):
 
     if event == "charge.success":
         reference = data.get("reference")
-        # safety: get status and amount
-        status = data.get("status")
-        amount_paid = data.get("amount")  # in kobo/cents (integer)
         try:
             if reference and str(reference).startswith("agent-"):
                 # agent registration flow
@@ -248,7 +248,6 @@ def paystack_webhook(request):
                     pass
             else:
                 # treat as Purchase id (numeric)
-                # Sometimes Paystack may send a non-numeric reference; guard that.
                 try:
                     purchase_id = int(reference)
                 except Exception:
@@ -275,7 +274,6 @@ def paystack_webhook(request):
                         try:
                             requests.post(f"{settings.DATADASH_BASE_URL}/v1/orders", headers=headers, json=payload, timeout=10)
                         except Exception:
-                            # delivery failure should be retried in admin or separate job
                             pass
 
                     except Purchase.DoesNotExist:
@@ -289,23 +287,133 @@ def paystack_webhook(request):
 
 
 # -------------------------
-# Profile and small helpers
+# Simple API (API key protected)
+# - GET /api/bundles/          -> returns bundles JSON (public)
+# - POST /api/sell/            -> create sale (requires X-API-KEY)
+# - GET  /api/agent/<id>/tx/   -> agent transactions (requires X-API-KEY)
 # -------------------------
-@login_required
-def profile(request):
-    return render(request, "core/profile.html", {"user": request.user})
+def _check_api_key(request):
+    """Return True if valid api key provided in header X-API-KEY or ?api_key=."""
+    api_key_env = getattr(settings, "API_KEY", "") or ""
+    if not api_key_env:
+        return False
+    header = request.headers.get("X-API-KEY") or request.GET.get("api_key")
+    if not header:
+        return False
+    # support multiple keys separated by comma
+    keys = [k.strip() for k in api_key_env.split(",") if k.strip()]
+    return header in keys
 
 
+@require_http_methods(["GET"])
+def api_bundles(request):
+    bundles = Bundle.objects.all().order_by("price")
+    data = []
+    for b in bundles:
+        data.append({
+            "id": b.id,
+            "name": b.name,
+            "code": b.code,
+            "price": str(b.price),
+            "network": b.network,
+            "description": b.description or "",
+            "logo": b.logo or "",
+            "color": b.color or "",
+        })
+    return JsonResponse({"status": "ok", "data": data})
+
+
+@csrf_exempt
+@require_http_methods(["POST"])
+def api_sell(request):
+    if not _check_api_key(request):
+        return JsonResponse({"status": "error", "message": "Invalid or missing API key"}, status=401)
+
+    try:
+        payload = json.loads(request.body.decode("utf-8"))
+    except Exception:
+        return JsonResponse({"status": "error", "message": "Invalid JSON"}, status=400)
+
+    bundle_id = payload.get("bundle_id")
+    recipient = payload.get("recipient")
+    agent_username = payload.get("agent_username")  # optional: which agent is making the sale
+
+    if not bundle_id or not recipient:
+        return JsonResponse({"status": "error", "message": "bundle_id and recipient required"}, status=400)
+
+    try:
+        bundle = Bundle.objects.get(id=bundle_id)
+    except Bundle.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "Invalid bundle_id"}, status=404)
+
+    # determine user (agent) performing the sale
+    user = None
+    if agent_username:
+        try:
+            user = User.objects.get(username=agent_username)
+        except User.DoesNotExist:
+            user = None
+
+    # fallback to API key owner if you store mapping — for now use anonymous system user if none
+    if user is None:
+        # pick a generic system user if exists
+        try:
+            user = User.objects.filter(is_superuser=True).first()
+        except Exception:
+            user = None
+
+    purchase = Purchase.objects.create(
+        user=user or User.objects.first(),
+        recipient=recipient,
+        bundle=bundle,
+        amount=bundle.price,
+        paid=False
+    )
+
+    # initialize paystack and return authorization_url for client to complete payment
+    headers = {"Authorization": f"Bearer {settings.PAYSTACK_SECRET_KEY}"}
+    data = {
+        "email": (user.email if user and user.email else f"{user.username if user else 'anon'}@example.com"),
+        "amount": int(bundle.price * 100),
+        "reference": str(purchase.id),
+        "callback_url": request.build_absolute_uri("/paystack-webhook/"),
+        "metadata": {"custom_fields": [{"display_name": "Recipient", "variable_name": "recipient", "value": recipient}]}
+    }
+    try:
+        r = requests.post("https://api.paystack.co/transaction/initialize", headers=headers, json=data, timeout=15)
+        res = r.json()
+        if res.get("status"):
+            return JsonResponse({"status": "ok", "authorization_url": res["data"]["authorization_url"], "purchase_id": purchase.id})
+        else:
+            return JsonResponse({"status": "error", "message": res.get("message")}, status=500)
+    except Exception as e:
+        return JsonResponse({"status": "error", "message": str(e)}, status=500)
+
+
+@require_http_methods(["GET"])
+def api_agent_transactions(request, user_id):
+    if not _check_api_key(request):
+        return JsonResponse({"status": "error", "message": "Invalid or missing API key"}, status=401)
+
+    try:
+        u = User.objects.get(id=user_id)
+    except User.DoesNotExist:
+        return JsonResponse({"status": "error", "message": "User not found"}, status=404)
+
+    txs = Purchase.objects.filter(user=u).order_by("-created_at")[:200]
+    data = []
+    for t in txs:
+        data.append({
+            "id": t.id,
+            "bundle": t.bundle.name,
+            "amount": str(t.amount),
+            "recipient": t.recipient,
+            "paid": t.paid,
+            "created_at": t.created_at.isoformat(),
+            "paid_at": t.paid_at.isoformat() if t.paid_at else None,
+        })
+    return JsonResponse({"status": "ok", "user": u.username, "data": data})
 def payment_success(request):
-    return render(request, 'core/payment_success.html')
-
-
-# TEMP: ensure admin account exists on deployment (keeps your previous behavior)
-try:
-    if not User.objects.filter(username="admin").exists():
-        User.objects.create_superuser("admin", "admin@example.com", "yourpassword123")
-        print("✅ Superuser 'admin' created successfully.")
-    else:
-        print("ℹ️ Superuser 'admin' already exists.")
-except Exception as e:
-    print("⚠️ Error creating admin user:", e)
+    return render(request, "payment_success.html")
+def profile(request):
+    return render(request, "core/profile.html")
