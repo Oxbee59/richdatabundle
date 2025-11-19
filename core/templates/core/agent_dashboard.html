@@ -2,34 +2,79 @@
 {% block content %}
 
 <style>
-  .ag-card {
-      background: #fff;
-      border-radius: 14px;
-      padding: 22px;
-      box-shadow: 0 3px 10px rgba(0,0,0,.1);
-      transition: .2s ease;
-      position: relative;
-  }
-  .ag-card:hover { transform: translateY(-4px); }
-  .ag-title { font-size: 18px; color: #2d035a; font-weight: bold; }
-  .ag-value { font-size: 28px; font-weight: bold; margin-top: 8px; }
-  .load-wallet-btn {
-      position: absolute;
-      top: 12px;
-      right: 12px;
-      font-size: 12px;
-      padding: 4px 8px;
-  }
+/* =======================
+   CARD STYLES
+======================= */
+.ag-card {
+    background: #fff;
+    border-radius: 14px;
+    padding: 22px;
+    box-shadow: 0 3px 10px rgba(0,0,0,.1);
+    transition: .2s ease;
+    position: relative;
+    margin-bottom: 20px;
+}
+.ag-card:hover { transform: translateY(-4px); }
+.ag-title { font-size: 18px; color: #2d035a; font-weight: bold; }
+.ag-value { font-size: 28px; font-weight: bold; margin-top: 8px; }
+.load-wallet-btn {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    font-size: 12px;
+    padding: 4px 8px;
+}
+.ag-card code {
+    background: #f5f5f5;
+    padding: 4px 8px;
+    border-radius: 4px;
+}
+.btn-copy {
+    font-size: 12px;
+    padding: 4px 8px;
+}
+
+/* =======================
+   TABLE STYLES
+======================= */
+.table-hover tbody tr:hover {
+    background-color: #f9f9f9;
+}
 </style>
 
 <div class="container py-4">
 
   <h3 class="fw-bold mb-4 text-dark">Agent Dashboard</h3>
 
-  <!-- Cards Row -->
+  <!-- =======================
+       API KEY CARD
+  ======================= -->
   <div class="row mb-4">
+    <div class="col-md-12">
+      <div class="ag-card">
+        <div class="ag-title">Your API Key</div>
+        <div class="ag-value">
+          <code id="apiKey">{{ api_key }}</code>
+          <button class="btn btn-outline-primary btn-copy ms-2" onclick="copyApiKey()">Copy</button>
+        </div>
+      </div>
+    </div>
+  </div>
 
-    <div class="col-md-3 mb-3">
+  <script>
+  function copyApiKey() {
+      const key = document.getElementById("apiKey").innerText;
+      navigator.clipboard.writeText(key).then(() => {
+          alert("API Key copied to clipboard!");
+      });
+  }
+  </script>
+
+  <!-- =======================
+       DASHBOARD METRIC CARDS
+  ======================= -->
+  <div class="row mb-4">
+    <div class="col-md-3">
       <div class="ag-card">
         <div class="ag-title">Wallet Balance</div>
         <div class="ag-value">₵{{ wallet_balance }}</div>
@@ -37,30 +82,31 @@
       </div>
     </div>
 
-    <div class="col-md-3 mb-3">
+    <div class="col-md-3">
       <div class="ag-card">
         <div class="ag-title">Commission Earned</div>
         <div class="ag-value">₵{{ commission_earned }}</div>
       </div>
     </div>
 
-    <div class="col-md-3 mb-3">
+    <div class="col-md-3">
       <div class="ag-card">
         <div class="ag-title">Total Sales</div>
         <div class="ag-value">{{ total_sales }}</div>
       </div>
     </div>
 
-    <div class="col-md-3 mb-3">
+    <div class="col-md-3">
       <div class="ag-card">
         <div class="ag-title">Sales Volume</div>
         <div class="ag-value">₵{{ total_volume }}</div>
       </div>
     </div>
-
   </div>
 
-  <!-- Quick Sell Form -->
+  <!-- =======================
+       QUICK SELL FORM
+  ======================= -->
   <div class="card p-3 mb-4 shadow-sm">
     <h5 class="fw-bold">Quick Sell</h5>
 
@@ -78,13 +124,15 @@
         <input class="form-control" name="recipient" placeholder="054 XXXXXXX" required>
       </div>
       <div class="col-md-4">
-        <button class="btn btn-dark w-100">Sell Now</button>
+        <button type="submit" class="btn btn-dark w-100">Sell Now</button>
       </div>
     </form>
   </div>
 
-  <!-- Recent Sales Table -->
-  <div class="card p-3 shadow-sm">
+  <!-- =======================
+       RECENT SALES TABLE
+  ======================= -->
+  <div class="card p-3 shadow-sm mb-4">
     <h5 class="fw-bold">Recent Sales</h5>
     <table class="table mt-3 table-hover">
       <thead>
@@ -120,7 +168,9 @@
     </table>
   </div>
 
-  <!-- Agent Features Preview (optional) -->
+  <!-- =======================
+       AGENT FEATURES PREVIEW
+  ======================= -->
   <div class="card p-3 mt-4 shadow-sm">
     <h5 class="fw-bold">Agent Features Preview</h5>
     <ul>
@@ -128,6 +178,8 @@
       <li>Track commission and sales volume</li>
       <li>View detailed recent transactions</li>
       <li>Top-up wallet for immediate sales</li>
+      <li>Access your unique API key for automated operations</li>
+      <li>View API logs and transaction history (via API)</li>
     </ul>
   </div>
 

@@ -1,3 +1,7 @@
+__pycache__/
+*.pyc
+*.pyo
+db.sqlite3
 # Python
 *.pyc
 __pycache__/
@@ -8,3 +12,9 @@ db.sqlite3
 
 # Environment variables
 .env
+
+
+
+
+
+
